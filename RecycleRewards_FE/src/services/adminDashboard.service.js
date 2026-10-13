@@ -6,9 +6,10 @@ const formatDate = (value) => {
 };
 
 export async function getAdminDashboard() {
-  const submissions = await authService.adminSubmissions();
-  if (!Array.isArray(submissions)) throw new Error('Dữ liệu thống kê từ máy chủ không hợp lệ.');
+  const rawSubmissions = await authService.adminSubmissions();
+  if (!Array.isArray(rawSubmissions)) throw new Error('Dữ liệu thống kê từ máy chủ không hợp lệ.');
 
+  const submissions = rawSubmissions.filter(Boolean);
   const approved = submissions.filter((item) => item.status === 'approved');
   const countsByDate = new Map();
   const countsByType = new Map();

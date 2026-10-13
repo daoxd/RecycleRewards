@@ -57,26 +57,29 @@ export default function AdminDashboard() {
     return () => { active = false; };
   }, [notify]);
 
-  const dailyData = useMemo(() => data && ({
-    labels: data.dailyApproved.map(([date]) => shortDate(date)),
+  const dailyApproved = useMemo(() => Array.isArray(data?.dailyApproved) ? data.dailyApproved : [], [data]);
+  const approvedByType = useMemo(() => Array.isArray(data?.approvedByType) ? data.approvedByType : [], [data]);
+
+  const dailyData = useMemo(() => ({
+    labels: dailyApproved.map(([date]) => shortDate(date)),
     datasets: [{
       label: 'Lượt bài nộp được duyệt',
-      data: data.dailyApproved.map(([, count]) => count),
+      data: dailyApproved.map(([, count]) => count),
       backgroundColor: '#17a875',
       borderRadius: 6,
       maxBarThickness: 48,
     }],
-  }), [data]);
+  }), [dailyApproved]);
 
-  const typeData = useMemo(() => data && ({
-    labels: data.approvedByType.map(([type]) => type),
+  const typeData = useMemo(() => ({
+    labels: approvedByType.map(([type]) => type),
     datasets: [{
       label: 'Lượt bài nộp được duyệt',
-      data: data.approvedByType.map(([, count]) => count),
-      backgroundColor: data.approvedByType.map((_, index) => colors[index % colors.length]),
+      data: approvedByType.map(([, count]) => count),
+      backgroundColor: approvedByType.map((_, index) => colors[index % colors.length]),
       borderWidth: 0,
     }],
-  }), [data]);
+  }), [approvedByType]);
 
   const barOptions = useMemo(() => ({
     responsive: true,
@@ -99,21 +102,21 @@ export default function AdminDashboard() {
       : error ? <section className="surface dashboard-state"><div className="error-state" role="alert">⚠ {error}</div></section>
         : data && <>
           <section className="metric-grid admin-metric-grid" aria-label="Chỉ số tổng quan">
-            <Stat icon="♻" value={number(data.totalSubmissions)} label="Tổng lượt gửi" detail="Tất cả trạng thái" />
-            <Stat icon="✓" value={number(data.approvedCount)} label="Đã được duyệt" detail="Lượt tái chế đã xác nhận" />
-            <Stat icon="◷" value={number(data.pendingCount)} label="Đang chờ duyệt" detail="Cần admin kiểm tra" />
-            <Stat icon="♙" value={number(data.submitterCount)} label="Người gửi có hoạt động" detail="Tài khoản có bài nộp" />
-            <Stat icon="★" value={number(data.issuedPoints)} label="Điểm đã phát hành" detail="Tổng điểm của bài đã duyệt" />
+            <Stat icon="♻" value={number(data.totalSubmissions || 0)} label="Tổng lượt gửi" detail="Tất cả trạng thái" />
+            <Stat icon="✓" value={number(data.approvedCount || 0)} label="Đã được duyệt" detail="Lượt tái chế đã xác nhận" />
+            <Stat icon="◷" value={number(data.pendingCount || 0)} label="Đang chờ duyệt" detail="Cần admin kiểm tra" />
+            <Stat icon="♙" value={number(data.submitterCount || 0)} label="Người gửi có hoạt động" detail="Tài khoản có bài nộp" />
+            <Stat icon="★" value={number(data.issuedPoints || 0)} label="Điểm đã phát hành" detail="Tổng điểm của bài đã duyệt" />
           </section>
           <p className="dashboard-data-note">Biểu đồ dùng số lượt bài nộp được duyệt; API hiện chưa cung cấp khối lượng rác (kg) hoặc tổng số tài khoản.</p>
-          {data.approvedCount === 0
+          {Number(data.approvedCount || 0) === 0
             ? <section className="surface"><EmptyChart message="Biểu đồ sẽ hiển thị khi có bài nộp được duyệt." /></section>
             : <section className="chart-grid">
               <ChartCard title="Lượt tái chế theo ngày" subtitle="Tối đa 7 ngày có dữ liệu · Đơn vị: lượt đã duyệt">
-                {data.dailyApproved.length ? <div className="chart-wrap"><Bar data={dailyData} options={barOptions} /></div> : <EmptyChart message="Chưa có ngày hợp lệ trong dữ liệu bài nộp." />}
+                {dailyApproved.length ? <div className="chart-wrap"><Bar data={dailyData} options={barOptions} /></div> : <EmptyChart message="Chưa có ngày hợp lệ trong dữ liệu bài nộp." />}
               </ChartCard>
               <ChartCard title="Cơ cấu theo loại rác" subtitle="Theo số lượt đã duyệt · Đơn vị: lượt">
-                {data.approvedByType.length ? <div className="chart-wrap chart-wrap-doughnut"><Doughnut data={typeData} options={doughnutOptions} /></div> : <EmptyChart message="Chưa có phân loại rác được duyệt." />}
+                {approvedByType.length ? <div className="chart-wrap chart-wrap-doughnut"><Doughnut data={typeData} options={doughnutOptions} /></div> : <EmptyChart message="Chưa có phân loại rác được duyệt." />}
               </ChartCard>
             </section>}
         </>}
