@@ -8,7 +8,7 @@ export async function connectDatabase() {
 	} catch (error) {
 		throw new Error(`Không thể kết nối MongoDB: ${error.message}`);
 	}
-	console.log('MongoDB connected');
+	console.log('MongoDB connected.');
 }
 
 export function databaseState() {

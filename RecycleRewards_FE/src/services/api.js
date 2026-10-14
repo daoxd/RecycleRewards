@@ -1,6 +1,6 @@
 import { auth } from '../config/firebase.js';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://recycle-rewards.duckdns.org/api').replace(/\/$/, '');
 
 export async function request(path, { method = 'GET', body, role } = {}) {
   const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
