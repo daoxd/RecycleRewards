@@ -21,23 +21,24 @@ jobs:
         env:
           HOST: ${{ secrets.EC2_HOST }}
           USER: ${{ secrets.EC2_USER }}
+          BRANCH: ${{ github.ref_name }}
         run: |
-          ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
-            # Tự động tìm thư mục chứa code backend trên EC2
-            TARGET_DIR=$(find ~ -type d -name "*RecycleRewards*" 2>/dev/null | head -n 1)
+          ssh -o StrictHostKeyChecking=no $USER@$HOST "BRANCH='$BRANCH' bash -s" << 'EOF'
+            BACKEND_DIR=$(find ~ -type d -path "*/RecycleRewards_BE" 2>/dev/null | head -n 1)
             
-            if [ -z "$TARGET_DIR" ]; then
-              echo "Không tìm thấy thư mục project trên EC2!"
+            if [ -z "$BACKEND_DIR" ]; then
+              echo "Không tìm thấy thư mục RecycleRewards_BE trên EC2!"
               exit 1
             fi
 
-            echo "Đang deploy tại thư mục: $TARGET_DIR"
-            if [ -d "$TARGET_DIR/RecycleRewards_BE" ]; then
-              TARGET_DIR="$TARGET_DIR/RecycleRewards_BE"
-            fi
-            cd "$TARGET_DIR"
+            REPO_DIR=$(git -C "$BACKEND_DIR" rev-parse --show-toplevel)
+            echo "Đang deploy repo: $REPO_DIR"
+            cd "$REPO_DIR"
 
-            git pull origin main || git pull origin dev
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            cd "$BACKEND_DIR"
             npm install
             
             # Kiểm tra và tự động cài đặt PM2 nếu trên server chưa có
@@ -49,15 +50,9 @@ jobs:
             
             # Restart hoặc start mới app nếu chưa tồn tại process recycle-backend
             if pm2 describe recycle-backend > /dev/null 2>&1; then
-              pm2 restart recycle-backend
+              pm2 restart recycle-backend --update-env
             else
-              # Tự động tìm file khởi động chính (server.js hoặc app.js hoặc index.js)
-              START_FILE="server.js"
-              if [ -f "app.js" ]; then START_FILE="app.js"; fi
-              if [ -f "index.js" ]; then START_FILE="index.js"; fi
-              
-              echo "Khởi động lần đầu với file: $START_FILE"
-              pm2 start $START_FILE --name recycle-backend
+              pm2 start server.js --name recycle-backend
             fi
             
             pm2 save
