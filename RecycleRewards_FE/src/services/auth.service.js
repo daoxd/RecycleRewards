@@ -44,5 +44,10 @@ function authErrorMessage(error) {
 
 async function syncUser(firebaseUser) {
   const idToken = await firebaseUser.getIdToken(true);
-  return request('/auth/session', { method: 'POST', body: { idToken } });
+  try {
+    return await request('/auth/session', { method: 'POST', body: { idToken } });
+  } catch (error) {
+    if (error.status !== 404) throw error;
+    return request('/auth/google', { method: 'POST', body: { idToken } });
+  }
 }
