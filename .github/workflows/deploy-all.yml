@@ -61,7 +61,7 @@ jobs:
       - name: Build Frontend
         working-directory: ./RecycleRewards_FE
         env:
-          VITE_API_URL: http://recycle-rewards.duckdns.org/api
+          VITE_API_URL: https://recycle-rewards.duckdns.org/api
         run: |
           npm install
           npm run build
