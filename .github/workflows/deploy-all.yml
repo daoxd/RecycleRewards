@@ -2,7 +2,7 @@ name: CI/CD Pipeline (Backend & Frontend)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev"]
 
 jobs:
   # Job 1: Tự động deploy Backend lên AWS EC2
@@ -23,7 +23,7 @@ jobs:
           USER: ${{ secrets.EC2_USER }}
         run: |
           ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
-            cd ~/du-an-cua-bro/backend   # Trỏ đúng vào thư mục backend trên EC2
+            cd ~/RecycleRewards_BE   # Trỏ đúng vào thư mục backend trên EC2
             git pull origin main
             npm install
             pm2 restart recycle-backend  # Tên process PM2 của bro
