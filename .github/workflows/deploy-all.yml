@@ -23,7 +23,7 @@ jobs:
           USER: ${{ secrets.EC2_USER }}
         run: |
           ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
-            # Tự động tìm thư mục chứa code backend trên EC2 (thay vì cố định tên)
+            # Tự động tìm thư mục chứa code backend trên EC2
             TARGET_DIR=$(find ~ -type d -name "*RecycleRewards*" 2>/dev/null | head -n 1)
             
             if [ -z "$TARGET_DIR" ]; then
@@ -34,7 +34,7 @@ jobs:
             echo "Đang deploy tại thư mục: $TARGET_DIR"
             cd "$TARGET_DIR"
             
-            # Nếu monorepo có thư mục con backend, hãy un-comment dòng dưới:
+            # Nếu monorepo của bro có thư mục con backend riêng, hãy mở comment dòng dưới:
             # cd backend
 
             git pull origin main || git pull origin dev
@@ -70,7 +70,7 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_RECYCLE_REWARDS_2026 }}'
           channelId: live
           projectId: recycle-rewards-2026
           entryPoint: ./RecycleRewards_FE
