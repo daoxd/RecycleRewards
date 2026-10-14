@@ -31,3 +31,15 @@ const firebaseAuth = getAuth(firebaseApp);
 export function verifyIdToken(idToken) {
 	return firebaseAuth.verifyIdToken(idToken);
 }
+
+export function createFirebaseUser(data) {
+	return firebaseAuth.createUser(data);
+}
+
+export function updateFirebaseUser(uid, data) {
+	return firebaseAuth.updateUser(uid, data);
+}
+
+export function deleteFirebaseUser(uid) {
+	return firebaseAuth.deleteUser(uid);
+}

@@ -1,39 +1,46 @@
-import { createSubmission, submissions } from '../models/submission.model.js';
+import { Submission } from '../models/submission.model.js';
 
 const AI_CONFIDENCE_THRESHOLD = 80;
 
-export function listMine(req, res) {
-  const { studentId } = req.query;
-  res.json(submissions.filter((item) => !studentId || item.studentId === studentId));
+export async function listMine(req, res) {
+  const studentId = req.user.role === 'student' ? req.user.studentId : req.query.studentId;
+  const items = await Submission.find(studentId ? { studentId } : {}).sort({ submittedAt: -1 });
+  res.json(items.map((item) => item.toJSON()));
 }
 
-export function studentDashboard(req, res) {
-  const items = submissions.filter((item) => item.studentId === req.params.studentId);
+export async function studentDashboard(req, res) {
+  if (req.user.role === 'student' && req.params.studentId !== req.user.studentId) {
+    return res.status(403).json({ message: 'Bạn không thể xem dashboard của người dùng khác.' });
+  }
+  const items = await Submission.find({ studentId: req.params.studentId }).sort({ submittedAt: -1 });
   const approved = items.filter((item) => item.status === 'approved');
   res.json({
     totalPoints: approved.reduce((total, item) => total + item.points, 0),
     totalSubmissions: items.length,
     approvedCount: approved.length,
     pendingCount: items.filter((item) => item.status === 'pending').length,
-    recent: [...items].sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)).slice(0, 4),
+    recent: items.slice(0, 4).map((item) => item.toJSON()),
   });
 }
 
-export function submitWaste(req, res) {
-  const { studentName, studentId, wasteType, confidence, weightKg, imageDataUrl } = req.body;
-  if (!studentName || !studentId || !wasteType) return res.status(400).json({ message: 'Thiếu thông tin vật phẩm.' });
+export async function submitWaste(req, res) {
+  const { wasteType, confidence, weightKg, imageDataUrl } = req.body;
+  if (!wasteType) return res.status(400).json({ message: 'Thiếu thông tin vật phẩm.' });
   const parsedWeightKg = Number(weightKg || 0);
   if (!Number.isFinite(parsedWeightKg) || parsedWeightKg < 0) {
     return res.status(400).json({ message: 'Khối lượng phải là số không âm.' });
   }
-  res.status(201).json(createSubmission({
-    studentName,
-    studentId,
+  const submission = await Submission.create({
+    userId: req.user._id,
+    studentName: req.user.name,
+    studentId: req.user.studentId,
     wasteType,
     confidence: Number(confidence) || 88,
     weightKg: parsedWeightKg,
     imageDataUrl,
-  }));
+    points: 0,
+  });
+  res.status(201).json(submission.toJSON());
 }
 
 export function checkAi(req, res) {

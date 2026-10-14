@@ -7,9 +7,8 @@ try {
 }
 
 const { default: app } = await import('./src/app.js');
+const { connectDatabase } = await import('./src/config/db.js');
 
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`Server đang chạy ở cổng ${PORT}`));
-}
-exports.api = onRequest(app);
+const PORT = process.env.PORT || 5000;
+await connectDatabase();
+app.listen(PORT, () => console.log(`Server đang chạy ở cổng ${PORT}`));

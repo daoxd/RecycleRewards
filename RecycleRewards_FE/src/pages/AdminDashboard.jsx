@@ -3,6 +3,7 @@ import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, Linear
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { getAdminDashboard } from '../services/adminDashboard.service.js';
 import { useToast } from '../components/ToastProvider.jsx';
+import AdminUsersPanel from '../components/common/AdminUsersPanel.jsx';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
@@ -12,7 +13,7 @@ const shortDate = (value) => new Intl.DateTimeFormat('vi-VN', { day: '2-digit', 
 
 function Header() {
   return <header className="page-header">
-    <div><em>KHU VỰC QUẢN TRỊ</em><h1>Tổng quan tái chế</h1><p>Dữ liệu lấy từ API bài nộp; backend hiện trả dữ liệu demo trong bộ nhớ.</p></div>
+    <div><em>KHU VỰC QUẢN TRỊ</em><h1>Tổng quan tái chế</h1><p>Dữ liệu được tổng hợp trực tiếp từ MongoDB.</p></div>
   </header>;
 }
 
@@ -34,6 +35,7 @@ function EmptyChart({ message }) {
 }
 
 export default function AdminDashboard() {
+  const [tab, setTab] = useState('overview');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -98,6 +100,8 @@ export default function AdminDashboard() {
 
   return <>
     <Header />
+    <div className="admin-tabs" role="tablist"><button className={tab === 'overview' ? 'active' : ''} type="button" onClick={() => setTab('overview')}>Tổng quan</button><button className={tab === 'users' ? 'active' : ''} type="button" onClick={() => setTab('users')}>Quản lý người dùng</button></div>
+    {tab === 'users' ? <AdminUsersPanel /> : <>
     {loading ? <section className="surface dashboard-state" role="status">Đang tải thống kê...</section>
       : error ? <section className="surface dashboard-state"><div className="error-state" role="alert">⚠ {error}</div></section>
         : data && <>
@@ -120,5 +124,6 @@ export default function AdminDashboard() {
               </ChartCard>
             </section>}
         </>}
+    </>}
   </>;
 }

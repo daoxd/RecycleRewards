@@ -66,6 +66,23 @@ label { display: block; font-size: 12px; font-weight: 700; margin: 17px 0 7px; c
 .admin-stat strong { overflow-wrap: anywhere; }
 .admin-stat small { display: block; margin-top: 5px; color: #89968f; font-size: 10px; line-height: 1.4; }
 .dashboard-data-note { margin: -8px 0 18px; color: #819087; font-size: 11px; line-height: 1.6; }
+.admin-tabs { display: flex; gap: 6px; margin: -4px 0 22px; border-bottom: 1px solid #e8efeb; }
+.admin-tabs button { border: 0; border-bottom: 2px solid transparent; padding: 10px 12px; color: #819087; background: transparent; font-size: 12px; font-weight: 700; }
+.admin-tabs button.active { color: #087a55; border-bottom-color: #0b9265; }
+.admin-users-layout { display: grid; grid-template-columns: minmax(260px, .7fr) minmax(0, 1.3fr); gap: 16px; align-items: start; }
+.admin-user-form { display: grid; }
+.admin-user-form label { margin-top: 12px; }
+.admin-user-list { min-width: 0; }
+.admin-user-table { display: grid; margin-top: 14px; }
+.admin-user-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid #edf2ef; }
+.admin-user-row:last-child { border-bottom: 0; }
+.admin-user-row > div:first-child { min-width: 0; display: grid; gap: 4px; }
+.admin-user-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.admin-user-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #819087; font-size: 10px; }
+.admin-user-actions { display: flex; gap: 6px; }
+.admin-user-actions .btn { padding: 7px 9px; font-size: 10px; }
+.auth-reset { display: block; margin: 12px auto 0; }
+@media (max-width: 800px) { .admin-users-layout { grid-template-columns: 1fr; } }
 .chart-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
 .chart-card { min-width: 0; }
 .chart-wrap { position: relative; width: 100%; height: 280px; }

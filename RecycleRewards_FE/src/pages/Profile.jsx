@@ -52,7 +52,7 @@ export default function Profile({ session, setSession }) {
       return;
     }
     setPreview(URL.createObjectURL(file));
-    notify('Ảnh chỉ đang xem trước; backend chưa cung cấp API lưu avatar.', 'info');
+    notify('Ảnh chỉ đang xem trước; avatar Google được đồng bộ từ tài khoản.', 'info');
   }
 
   function cancelEdit() {
@@ -89,7 +89,7 @@ export default function Profile({ session, setSession }) {
     }
   }
 
-  const avatar = preview || profile.avatarUrl || profile.avatar || '';
+  const avatar = preview || profile.picture || profile.avatarUrl || profile.avatar || '';
   const email = profile.email || session.email || '';
 
   return <>

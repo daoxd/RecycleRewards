@@ -13,21 +13,31 @@ function Status({ status }) { return <span className={'pill ' + status}>{status 
 function Logo() { return <div className="logo"><b>♻</b><span><strong>Mầm Xanh</strong><small>TRƯỜNG HỌC XANH</small></span></div>; }
 function Button({ children, variant = 'primary', className = '', ...props }) { return <button className={'btn ' + variant + ' ' + className} {...props}>{children}</button>; }
 
-function Login({ login, notify }) {
-  const [role, setRole] = useState('student');
-  const [studentId, setStudentId] = useState('HS-2024-018');
+function Login({ login, emailLogin, register, notify }) {
+  const [mode, setMode] = useState('login');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   async function submit(event) {
-    event.preventDefault(); setLoading(true);
-    try { await login({ role, studentId, password }); } catch (error) { notify(error.message, 'error'); } finally { setLoading(false); }
+    event.preventDefault();
+    setLoading(true);
+    try {
+      await (mode === 'login' ? emailLogin(email, password) : register(name, email, password));
+    } catch (error) {
+      notify(authService.authErrorMessage(error), 'error');
+    } finally {
+      setLoading(false);
+    }
   }
   return <main className="login-page"><section className="login-panel"><div className="login-card">
     <Logo /><div className="intro"><em>CÙNG TRƯỜNG MÌNH SỐNG XANH</em><h1>Chào mừng bạn trở lại</h1><p>Đăng nhập để tiếp tục hành trình tái chế.</p></div>
-    <div className="role-switch"><Button variant={role === 'student' ? 'light active' : 'light'} onClick={() => setRole('student')}>Học sinh</Button><Button variant={role === 'admin' ? 'light active' : 'light'} onClick={() => setRole('admin')}>Quản trị viên</Button></div>
-    <GoogleLoginButton className="wide" signIn={() => login({ google: true })} onError={(error) => notify(error.message, 'error')} /><div className="divider">HOẶC ĐĂNG NHẬP BẰNG TÀI KHOẢN</div>
-    <form onSubmit={submit}><label>{role === 'student' ? 'Mã học sinh' : 'Mã quản trị viên'}</label><input value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="Ví dụ: HS-2024-018" /><label>Mật khẩu</label><input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Nhập mật khẩu" /><Button className="wide" disabled={loading}>{loading ? 'Đang đăng nhập...' : 'Đăng nhập  →'}</Button></form>
-    <p className="hint">Bản mock: mật khẩu không được kiểm tra hoặc lưu trữ.</p>
+    <GoogleLoginButton className="wide" signIn={login} onError={(error) => notify(error.message, 'error')} />
+    <div className="divider">HOẶC DÙNG EMAIL</div>
+    <div className="role-switch"><Button variant={mode === 'login' ? 'light active' : 'light'} onClick={() => setMode('login')}>Đăng nhập</Button><Button variant={mode === 'register' ? 'light active' : 'light'} onClick={() => setMode('register')}>Đăng ký</Button></div>
+    <form onSubmit={submit}>{mode === 'register' && <><label htmlFor="register-name">Họ và tên</label><input id="register-name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required /></>}<label htmlFor="auth-email">Email</label><input id="auth-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /><label htmlFor="auth-password">Mật khẩu</label><input id="auth-password" type="password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required /><Button className="wide" disabled={loading}>{loading ? 'Đang xử lý...' : mode === 'login' ? 'Đăng nhập →' : 'Tạo tài khoản →'}</Button></form>
+    {mode === 'login' && <button className="text-button auth-reset" type="button" onClick={async () => { if (!email) return notify('Nhập email để nhận liên kết đặt lại mật khẩu.', 'warning'); try { await authService.resetPassword(email); notify('Đã gửi liên kết đặt lại mật khẩu.', 'success'); } catch (error) { notify(error.message, 'error'); } }}>Quên mật khẩu?</button>}
+    <p className="hint">Tài khoản email được xác thực bởi Firebase và lưu profile trong hệ thống.</p>
   </div></section><aside className="login-art"><div><em>MỖI HÀNH ĐỘNG NHỎ, MỘT TƯƠNG LAI XANH</em><h2>Biến điều tốt<br />thành <i>thói quen.</i></h2><p>Mỗi món đồ được tái chế đúng cách đều góp thêm một điểm xanh cho lớp học và hành tinh của chúng ta.</p><b className="giant-leaf">♧</b></div><footer>Một chương trình nhỏ từ THCS Nguyễn Du <span>01 / 04</span></footer></aside></main>;
 }
 function Nav({ session, route, go, logout }) {
@@ -78,12 +88,35 @@ function Admin({ notify }) {
 }
 export default function App() {
   const { notify } = useToast();
+  const [authReady, setAuthReady] = useState(false);
   const [session, setSession] = useState(() => { try { return JSON.parse(localStorage.getItem('rr-session')) || null; } catch { return null; } }); const [route, setRoute] = useState(() => location.hash.slice(1) || '/');
   useEffect(() => { const sync = () => setRoute(location.hash.slice(1) || '/'); addEventListener('hashchange', sync); return () => removeEventListener('hashchange', sync); }, []);
   useEffect(() => { if (session) localStorage.setItem('rr-session', JSON.stringify(session)); else localStorage.removeItem('rr-session'); }, [session]);
+  useEffect(() => authService.onAuthStateChanged(async (firebaseUser) => {
+    if (!firebaseUser) {
+      setSession(null);
+      setAuthReady(true);
+      return;
+    }
+    try {
+      const response = await authService.syncUser(firebaseUser);
+      setSession(response.user);
+    } catch (error) {
+      if (error.status === 401) authService.logout().catch(() => {});
+      setSession(null);
+      notify(error.message, 'error');
+    } finally {
+      setAuthReady(true);
+    }
+  }), [notify]);
   function go(path) { location.hash = path; }
-  async function login(payload) { const response = payload.google ? await authService.googleLogin() : await authService.login(payload); setSession(response.user); go(response.user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard'); } function logout() { setSession(null); go('/login'); }
-  if (!session) return <Login login={login} notify={notify} />;
+  function completeLogin(response) { setSession(response.user); go(response.user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard'); }
+  async function login() { completeLogin(await authService.googleLogin()); }
+  async function emailLogin(email, password) { completeLogin(await authService.emailLogin(email, password)); }
+  async function register(name, email, password) { completeLogin(await authService.emailRegister(name, email, password)); }
+  function logout() { authService.logout().catch((error) => notify(error.message, 'error')); setSession(null); go('/login'); }
+  if (!authReady) return <main className="login-page"><section className="login-panel"><div className="login-card"><Logo /><p className="hint">Đang kiểm tra phiên đăng nhập...</p></div></section></main>;
+  if (!session) return <Login login={login} emailLogin={emailLogin} register={register} notify={notify} />;
   const isProfileRoute = route === '/profile' || route === '/student/settings';
   const isAdminQueueRoute = route === '/admin' || route === '/admin/submissions';
   let page;
