@@ -40,9 +40,27 @@ jobs:
             git pull origin main || git pull origin dev
             npm install
             
-            # Gọi pm2 an toàn tránh lỗi command not found
+            # Kiểm tra và tự động cài đặt PM2 nếu trên server chưa có
             export PATH=$PATH:/home/ubuntu/.npm/bin:/usr/bin:/usr/local/bin
-            npx pm2 restart recycle-backend || pm2 restart recycle-backend || echo "Chưa chạy pm2 process, kiểm tra lại tên process!"
+            if ! command -v pm2 &> /dev/null; then
+              echo "PM2 chưa được cài đặt, đang tiến hành cài đặt..."
+              sudo npm install -g pm2
+            fi
+            
+            # Restart hoặc start mới app nếu chưa tồn tại process recycle-backend
+            if pm2 describe recycle-backend > /dev/null 2>&1; then
+              pm2 restart recycle-backend
+            else
+              # Tự động tìm file khởi động chính (server.js hoặc app.js hoặc index.js)
+              START_FILE="server.js"
+              if [ -f "app.js" ]; then START_FILE="app.js"; fi
+              if [ -f "index.js" ]; then START_FILE="index.js"; fi
+              
+              echo "Khởi động lần đầu với file: $START_FILE"
+              pm2 start $START_FILE --name recycle-backend
+            fi
+            
+            pm2 save
           EOF
 
   # Job 2: Tự động build và deploy Frontend lên Firebase Hosting
