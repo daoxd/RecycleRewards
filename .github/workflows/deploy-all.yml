@@ -32,10 +32,10 @@ jobs:
             fi
 
             echo "Đang deploy tại thư mục: $TARGET_DIR"
+            if [ -d "$TARGET_DIR/RecycleRewards_BE" ]; then
+              TARGET_DIR="$TARGET_DIR/RecycleRewards_BE"
+            fi
             cd "$TARGET_DIR"
-            
-            # Nếu monorepo của bro có thư mục con backend riêng, hãy mở comment dòng dưới:
-            # cd backend
 
             git pull origin main || git pull origin dev
             npm install
