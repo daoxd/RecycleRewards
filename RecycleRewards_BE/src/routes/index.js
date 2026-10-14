@@ -6,5 +6,6 @@ import adminRoutes from './admin.routes.js';
 const router = Router();
 router.use('/auth', authRoutes);
 router.use('/submissions', wasteRoutes);
+router.use('/waste', wasteRoutes);
 router.use('/admin', adminRoutes);
 export default router;

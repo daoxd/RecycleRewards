@@ -3,6 +3,7 @@ import { authService } from './services/auth.service.js';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import Profile from './pages/Profile.jsx';
 import { useToast } from './components/ToastProvider.jsx';
+import GoogleLoginButton from './components/common/GoogleLoginButton.jsx';
 
 const wasteTypes = ['Chai nhựa PET', 'Lon nhôm', 'Giấy tái chế', 'Chai thủy tinh', 'Hộp giấy'];
 const date = (value) => new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
@@ -24,7 +25,7 @@ function Login({ login, notify }) {
   return <main className="login-page"><section className="login-panel"><div className="login-card">
     <Logo /><div className="intro"><em>CÙNG TRƯỜNG MÌNH SỐNG XANH</em><h1>Chào mừng bạn trở lại</h1><p>Đăng nhập để tiếp tục hành trình tái chế.</p></div>
     <div className="role-switch"><Button variant={role === 'student' ? 'light active' : 'light'} onClick={() => setRole('student')}>Học sinh</Button><Button variant={role === 'admin' ? 'light active' : 'light'} onClick={() => setRole('admin')}>Quản trị viên</Button></div>
-    <Button variant="outline" className="wide" onClick={() => notify('Đăng nhập Google chỉ là giao diện minh họa.', 'info')}>G &nbsp; Tiếp tục với Google</Button><div className="divider">HOẶC ĐĂNG NHẬP BẰNG TÀI KHOẢN</div>
+    <GoogleLoginButton className="wide" signIn={() => login({ google: true })} onError={(error) => notify(error.message, 'error')} /><div className="divider">HOẶC ĐĂNG NHẬP BẰNG TÀI KHOẢN</div>
     <form onSubmit={submit}><label>{role === 'student' ? 'Mã học sinh' : 'Mã quản trị viên'}</label><input value={studentId} onChange={(e) => setStudentId(e.target.value)} placeholder="Ví dụ: HS-2024-018" /><label>Mật khẩu</label><input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Nhập mật khẩu" /><Button className="wide" disabled={loading}>{loading ? 'Đang đăng nhập...' : 'Đăng nhập  →'}</Button></form>
     <p className="hint">Bản mock: mật khẩu không được kiểm tra hoặc lưu trữ.</p>
   </div></section><aside className="login-art"><div><em>MỖI HÀNH ĐỘNG NHỎ, MỘT TƯƠNG LAI XANH</em><h2>Biến điều tốt<br />thành <i>thói quen.</i></h2><p>Mỗi món đồ được tái chế đúng cách đều góp thêm một điểm xanh cho lớp học và hành tinh của chúng ta.</p><b className="giant-leaf">♧</b></div><footer>Một chương trình nhỏ từ THCS Nguyễn Du <span>01 / 04</span></footer></aside></main>;
@@ -81,7 +82,7 @@ export default function App() {
   useEffect(() => { const sync = () => setRoute(location.hash.slice(1) || '/'); addEventListener('hashchange', sync); return () => removeEventListener('hashchange', sync); }, []);
   useEffect(() => { if (session) localStorage.setItem('rr-session', JSON.stringify(session)); else localStorage.removeItem('rr-session'); }, [session]);
   function go(path) { location.hash = path; }
-  async function login(payload) { const response = await authService.login(payload); setSession(response.user); go(response.user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard'); } function logout() { setSession(null); go('/login'); }
+  async function login(payload) { const response = payload.google ? await authService.googleLogin() : await authService.login(payload); setSession(response.user); go(response.user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard'); } function logout() { setSession(null); go('/login'); }
   if (!session) return <Login login={login} notify={notify} />;
   const isProfileRoute = route === '/profile' || route === '/student/settings';
   const isAdminQueueRoute = route === '/admin' || route === '/admin/submissions';
