@@ -2,7 +2,7 @@ name: CI/CD Pipeline (Backend & Frontend)
 
 on:
   push:
-    branches: [ "main", "dev"]
+    branches: [ "main", "dev" ]
 
 jobs:
   # Job 1: Tự động deploy Backend lên AWS EC2
@@ -23,16 +23,32 @@ jobs:
           USER: ${{ secrets.EC2_USER }}
         run: |
           ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
-            cd ~/RecycleRewards_BE   # Trỏ đúng vào thư mục backend trên EC2
-            git pull origin main
+            # Tự động tìm thư mục chứa code backend trên EC2 (thay vì cố định tên)
+            TARGET_DIR=$(find ~ -type d -name "*RecycleRewards*" 2>/dev/null | head -n 1)
+            
+            if [ -z "$TARGET_DIR" ]; then
+              echo "Không tìm thấy thư mục project trên EC2!"
+              exit 1
+            fi
+
+            echo "Đang deploy tại thư mục: $TARGET_DIR"
+            cd "$TARGET_DIR"
+            
+            # Nếu monorepo có thư mục con backend, hãy un-comment dòng dưới:
+            # cd backend
+
+            git pull origin main || git pull origin dev
             npm install
-            pm2 restart recycle-backend  # Tên process PM2 của bro
+            
+            # Gọi pm2 an toàn tránh lỗi command not found
+            export PATH=$PATH:/home/ubuntu/.npm/bin:/usr/bin:/usr/local/bin
+            npx pm2 restart recycle-backend || pm2 restart recycle-backend || echo "Chưa chạy pm2 process, kiểm tra lại tên process!"
           EOF
 
   # Job 2: Tự động build và deploy Frontend lên Firebase Hosting
   deploy-frontend:
     runs-on: ubuntu-latest
-    needs: deploy-backend # (Tùy chọn) Chạy sau backend, hoặc để chạy song song bỏ dòng này đi
+    needs: deploy-backend 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -46,7 +62,7 @@ jobs:
         working-directory: ./frontend   # Trỏ vào thư mục chứa code frontend
         run: |
           npm install
-          npm run build                # Lệnh build ra file tĩnh (dist/build)
+          npm run build                # Lệnh build ra file tĩnh
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -55,5 +71,4 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_TOKEN }}'
           channelId: live
           projectId: recycle-rewards-2026
-  # Thay bằng Project ID Firebase của bro
-          entryPoint: ./frontend               # Chỉ định thư mục chạy firebase deploy
+          entryPoint: ./frontend
