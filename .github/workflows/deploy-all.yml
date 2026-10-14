@@ -59,10 +59,12 @@ jobs:
           node-version: '18'
 
       - name: Build Frontend
-        working-directory: ./frontend   # Trỏ vào thư mục chứa code frontend
+        working-directory: ./RecycleRewards_FE
+        env:
+          VITE_API_URL: http://recycle-rewards.duckdns.org/api
         run: |
           npm install
-          npm run build                # Lệnh build ra file tĩnh
+          npm run build
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -71,4 +73,4 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_TOKEN }}'
           channelId: live
           projectId: recycle-rewards-2026
-          entryPoint: ./frontend
+          entryPoint: ./RecycleRewards_FE
