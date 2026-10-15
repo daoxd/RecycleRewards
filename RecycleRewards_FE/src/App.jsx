@@ -98,25 +98,16 @@ function Scanner({ session, go, notify }) {
       if (!stream) setStream(camera);
       for (let attempt = 0; attempt < 20 && !video.current?.videoWidth; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 200));
       if (!video.current?.videoWidth) throw new Error('Không nhận được hình ảnh từ camera. Hãy kiểm tra quyền camera và thử lại.');
-      const captured = [];
-      let finalPrediction = { className: '', probability: 0 };
       const recordingCanvas = document.createElement('canvas'); const recordingScale = Math.min(1, 640 / video.current.videoWidth); recordingCanvas.width = Math.round(video.current.videoWidth * recordingScale); recordingCanvas.height = Math.round(video.current.videoHeight * recordingScale); const recordingContext = recordingCanvas.getContext('2d'); const canvasStream = recordingCanvas.captureStream(15);
       const videoChunks = []; const recordedAt = new Date(); const videoRecorder = window.MediaRecorder ? new MediaRecorder(canvasStream, { mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm' }) : null; recorder.current = videoRecorder;
       const videoUploaded = videoRecorder ? new Promise((resolve) => { videoRecorder.ondataavailable = (event) => { if (event.data.size) videoChunks.push(event.data); }; videoRecorder.onstop = async () => { try { const uploaded = await authService.uploadVideo(new Blob(videoChunks, { type: 'video/webm' }), 30, recordedAt.toISOString()); setVideoUrl(uploaded.videoUrl); setVideoRecordedAt(uploaded.recordedAt); setVideoDuration(uploaded.duration); resolve(true); } catch (error) { notify(error.message, 'error'); resolve(false); } }; videoRecorder.start(250); }) : Promise.resolve(false);
-      for (let index = 0; index < 30 && !stopRequested.current; index += 1) {
-        if (!video.current?.videoWidth) throw new Error('Camera chưa sẵn sàng.');
-        recordingContext.drawImage(video.current, 0, 0, recordingCanvas.width, recordingCanvas.height); recordingContext.fillStyle = '#000000b8'; recordingContext.fillRect(12, recordingCanvas.height - 45, 245, 31); recordingContext.fillStyle = '#ffffff'; recordingContext.font = '16px sans-serif'; recordingContext.fillText(videoTimestamp(new Date()), 22, recordingCanvas.height - 24); captured.push(recordingCanvas.toDataURL('image/jpeg', 0.65));
-        if (model.current) {
-          const predictions = await model.current.predict(recordingCanvas);
-          finalPrediction = predictions.reduce((best, item) => item.probability > best.probability ? item : best, finalPrediction);
-          setPrediction(finalPrediction.className); setConfidence(finalPrediction.probability);
-        }
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
+      const drawTimestamp = () => { if (!video.current?.videoWidth || stopRequested.current) return; recordingContext.drawImage(video.current, 0, 0, recordingCanvas.width, recordingCanvas.height); recordingContext.font = '16px sans-serif'; const timestamp = videoTimestamp(new Date()); const timestampWidth = recordingContext.measureText(timestamp).width; recordingContext.fillStyle = '#000000b8'; recordingContext.fillRect(recordingCanvas.width - timestampWidth - 28, 14, timestampWidth + 18, 31); recordingContext.fillStyle = '#ffffff'; recordingContext.fillText(timestamp, recordingCanvas.width - timestampWidth - 19, 35); requestAnimationFrame(drawTimestamp); };
+      drawTimestamp();
+      for (let elapsed = 0; elapsed < 30000 && !stopRequested.current; elapsed += 100) await new Promise((resolve) => setTimeout(resolve, 100));
       if (videoRecorder && videoRecorder.state === 'recording') videoRecorder.stop();
       await videoUploaded;
-      setFrames(captured); setImage(captured[0]); setConfidence(finalPrediction.probability || 0.88); setPrediction(finalPrediction.className || 'Đã lấy mẫu'); camera.getTracks().forEach((track) => track.stop()); setStream(null);
-      notify(`Đã lấy ${captured.length} frame từ video.`, 'success');
+      setConfidence(0.88); setPrediction('Video đã ghi'); camera.getTracks().forEach((track) => track.stop()); setStream(null);
+      notify('Đã ghi video và upload lên máy chủ.', 'success');
     } catch (error) { notify(error.message || 'Không thể mở camera.', 'error'); } finally { setCapturing(false); }
   }
   function stopSampling() { stopRequested.current = true; if (recorder.current?.state === 'recording') recorder.current.stop(); stream?.getTracks().forEach((track) => track.stop()); setStream(null); }
@@ -145,12 +136,13 @@ function Scanner({ session, go, notify }) {
     try {
       const ai = await authService.checkAi(confidence, frames);
       if (!ai.accepted) throw new Error(ai.message);
-      const uploaded = await authService.uploadFrames(frames);
+      const uploaded = frames.length ? await authService.uploadFrames(frames) : { frameUrls: [] };
       setFrameUrls(uploaded.frameUrls);
       await authService.createSubmission({ wasteType: type, confidence, imageDataUrl: image, imageUrl: uploaded.frameUrls[0], frameUrls: uploaded.frameUrls, videoUrl, videoRecordedAt, videoDurationSec: videoDuration });
       notify('Đã gửi vật phẩm! Điểm sẽ được cộng sau khi duyệt.', 'success'); go('/student/history');
     } catch (e) { notify(e.message, 'error'); } finally { setSending(false); }
   }
+  if (videoUrl) return <><Header eyebrow="VIDEO ĐÃ GHI" title="Kiểm tra và gửi" subtitle="Video đã được đóng timestamp ở góc phải và lưu trên EC2." /><section className="surface recorded-video review-video"><video controls src={videoUrl} /><small>Quay lúc {new Date(videoRecordedAt).toLocaleString('vi-VN')} · {videoDuration} giây</small><label>Loại vật phẩm</label><select value={type} onChange={(e) => setType(e.target.value)}><option value="">Chọn loại vật phẩm</option>{wasteTypes.map((item) => <option key={item}>{item}</option>)}</select><Button className="wide" disabled={!type || sending} onClick={send}>{sending ? 'Đang kiểm tra và gửi...' : 'Check-AI và gửi video →'}</Button></section></>;
   return <><Header eyebrow="NHẬN DIỆN TÁI CHẾ" title="Quay vật phẩm" subtitle="Teachable Machine gắn nhãn trực tiếp và lấy tối đa 30 frame." /><section className="scanner-grid"><div className="surface upload-surface"><div className="drop-zone"><video ref={video} className={stream ? 'camera-preview' : 'camera-preview camera-hidden'} autoPlay muted playsInline />{(stream || image) && <div className="prediction-badge"><strong>{prediction || 'Đang nhận diện...'}</strong><span>{confidence ? Math.round(confidence * 100) + '%' : '—'}</span></div>}{!stream && (image ? <img src={image} alt="Frame vật phẩm đã chọn" /> : <><b>⌁</b><strong>{modelReady ? 'Sẵn sàng nhận diện' : 'Đang tải model...'}</strong><span>Bấm nút để quay tự động 30 frame</span></>)}<Button type="button" variant="outline" disabled={capturing || !modelReady} onClick={captureFrames}>{capturing ? 'Đang quay và lấy frame...' : '⇥ Quay và lấy 30 frame'}</Button>{capturing && <Button type="button" variant="danger" onClick={stopSampling}>■ Dừng lấy mẫu</Button>}</div>{frames.length > 0 && <div className="frame-strip">{frames.map((frame, index) => <img key={frame} src={frame} alt={'Frame ' + (index + 1)} />)}</div>}</div><aside className="surface scan-result"><em>CHECK-AI</em><h2>Vật phẩm của bạn</h2><p>Nhãn và confidence lấy từ model Teachable Machine.</p><label>Loại vật phẩm</label><select value={type} onChange={(e) => setType(e.target.value)}><option value="">Chọn loại vật phẩm</option>{wasteTypes.map((item) => <option key={item}>{item}</option>)}</select><div className="result-stats"><span>Độ tin cậy<b>{confidence ? Math.round(confidence * 100) + '%' : '—'}</b></span><span>Frame<b>{frames.length}/30</b></span></div><Button className="wide" disabled={frames.length < 3 || !type || sending} onClick={send}>{sending ? 'Đang kiểm tra và gửi...' : 'Check-AI và gửi →'}</Button><small className="secure">Chỉ bài đạt confidence từ 0.5 mới được chuyển vào trạng thái pending.</small></aside></section></>;
 }
 function History({ session }) {
