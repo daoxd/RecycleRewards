@@ -19,7 +19,7 @@ export async function saveSubmissionFrames(frames, requestBaseUrl = '') {
 
 export async function saveSubmissionVideo(file, requestBaseUrl = '') {
   await mkdir(videoDirectory, { recursive: true });
-  const extension = file.mimetype === 'video/webm' ? 'webm' : 'mp4';
+  const extension = file.mimetype.startsWith('video/webm') ? 'webm' : 'mp4';
   const filename = `${randomUUID()}.${extension}`;
   await writeFile(path.join(videoDirectory, filename), file.buffer);
   const publicBaseUrl = String(process.env.PUBLIC_API_URL || requestBaseUrl).replace(/\/$/, '');
