@@ -74,7 +74,7 @@ function Scanner({ session, go, notify }) {
         if (!window.tmImage) throw new Error('Chưa tải được thư viện Teachable Machine.');
         model.current = await window.tmImage.load('/models/model.json', '/models/metadata.json');
         if (active) setModelReady(true);
-      } catch (error) { if (active) notify(error.message, 'error'); }
+      } catch (error) { if (active) { setModelReady(true); notify(error.message, 'warning'); } }
     }
     loadModel();
     return () => { active = false; };
@@ -98,8 +98,11 @@ function Scanner({ session, go, notify }) {
       if (!stream) setStream(camera);
       for (let attempt = 0; attempt < 20 && !video.current?.videoWidth; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 200));
       if (!video.current?.videoWidth) throw new Error('Không nhận được hình ảnh từ camera. Hãy kiểm tra quyền camera và thử lại.');
+      if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) throw new Error('Trình duyệt không hỗ trợ quay video. Hãy dùng Chrome hoặc Edge mới nhất.');
       const recordingCanvas = document.createElement('canvas'); const recordingScale = Math.min(1, 640 / video.current.videoWidth); recordingCanvas.width = Math.round(video.current.videoWidth * recordingScale); recordingCanvas.height = Math.round(video.current.videoHeight * recordingScale); const recordingContext = recordingCanvas.getContext('2d'); const canvasStream = recordingCanvas.captureStream(15);
-      const videoChunks = []; const recordedAt = new Date(); const videoRecorder = window.MediaRecorder ? new MediaRecorder(canvasStream, { mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm' }) : null; recorder.current = videoRecorder;
+      const supportedMimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']; const mimeType = supportedMimeTypes.find((type) => MediaRecorder.isTypeSupported(type));
+      if (!mimeType) throw new Error('Trình duyệt không hỗ trợ định dạng video WebM.');
+      const videoChunks = []; const recordedAt = new Date(); const videoRecorder = new MediaRecorder(canvasStream, { mimeType }); recorder.current = videoRecorder;
       const videoUploaded = videoRecorder ? new Promise((resolve) => { videoRecorder.ondataavailable = (event) => { if (event.data.size) videoChunks.push(event.data); }; videoRecorder.onstop = async () => { try { const uploaded = await authService.uploadVideo(new Blob(videoChunks, { type: 'video/webm' }), 30, recordedAt.toISOString()); setVideoUrl(uploaded.videoUrl); setVideoRecordedAt(uploaded.recordedAt); setVideoDuration(uploaded.duration); resolve(true); } catch (error) { notify(error.message, 'error'); resolve(false); } }; videoRecorder.start(250); }) : Promise.resolve(false);
       const drawTimestamp = () => { if (!video.current?.videoWidth || stopRequested.current) return; recordingContext.drawImage(video.current, 0, 0, recordingCanvas.width, recordingCanvas.height); recordingContext.font = '16px sans-serif'; const timestamp = videoTimestamp(new Date()); const timestampWidth = recordingContext.measureText(timestamp).width; recordingContext.fillStyle = '#000000b8'; recordingContext.fillRect(recordingCanvas.width - timestampWidth - 28, 14, timestampWidth + 18, 31); recordingContext.fillStyle = '#ffffff'; recordingContext.fillText(timestamp, recordingCanvas.width - timestampWidth - 19, 35); requestAnimationFrame(drawTimestamp); };
       drawTimestamp();

@@ -124,7 +124,7 @@ label { display: block; font-size: 12px; font-weight: 700; margin: 17px 0 7px; c
 .drop-zone video { width: 100%; max-width: 100%; max-height: 290px; object-fit: contain; border-radius: 10px; }
 .frame-strip { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; max-height: 150px; overflow-y: auto; margin-top: 12px; }
 .frame-strip img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 7px; }
-.drop-zone .camera-preview { display: block; width: 100%; height: min(52vw, 430px); min-height: 330px; object-fit: cover; background: #102d25; }
+.drop-zone .camera-preview { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; max-height: min(70vh, 520px); min-height: 0; object-fit: cover; background: #102d25; }
 .drop-zone .camera-hidden { display: none; }
 .drop-zone { position: relative; }
 .prediction-badge { position: absolute; top: 14px; left: 14px; right: 14px; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; color: white; background: #102d25d9; border: 1px solid #ffffff40; border-radius: 9px; font-size: 11px; }
