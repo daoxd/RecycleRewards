@@ -9,6 +9,7 @@ const wasteTypes = ['Chai nhựa PET', 'Lon nhôm', 'Giấy tái chế', 'Chai t
 const date = (value) => new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 const statusText = (status) => status === 'approved' ? 'Đã duyệt' : status === 'rejected' ? 'Từ chối' : 'Chờ duyệt';
 const confidencePercent = (value) => Math.round((Number(value) <= 1 ? Number(value) * 100 : Number(value)) || 0);
+const videoTimestamp = (value) => new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(value);
 const initials = (name) => name.trim().split(/\s+/).slice(-2).map((part) => part[0]).join('').toUpperCase();
 function Status({ status }) { return <span className={'pill ' + status}>{status === 'approved' ? '✓' : status === 'rejected' ? '×' : '◷'} {statusText(status)}</span>; }
 function Logo() { return <div className="logo"><b>♻</b><span><strong>Mầm Xanh</strong><small>TRƯỜNG HỌC XANH</small></span></div>; }
@@ -99,14 +100,14 @@ function Scanner({ session, go, notify }) {
       if (!video.current?.videoWidth) throw new Error('Không nhận được hình ảnh từ camera. Hãy kiểm tra quyền camera và thử lại.');
       const captured = [];
       let finalPrediction = { className: '', probability: 0 };
-      const videoChunks = []; const recordedAt = new Date(); const videoRecorder = window.MediaRecorder ? new MediaRecorder(camera, { mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm' }) : null; recorder.current = videoRecorder;
+      const recordingCanvas = document.createElement('canvas'); const recordingScale = Math.min(1, 640 / video.current.videoWidth); recordingCanvas.width = Math.round(video.current.videoWidth * recordingScale); recordingCanvas.height = Math.round(video.current.videoHeight * recordingScale); const recordingContext = recordingCanvas.getContext('2d'); const canvasStream = recordingCanvas.captureStream(15);
+      const videoChunks = []; const recordedAt = new Date(); const videoRecorder = window.MediaRecorder ? new MediaRecorder(canvasStream, { mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm' }) : null; recorder.current = videoRecorder;
       const videoUploaded = videoRecorder ? new Promise((resolve) => { videoRecorder.ondataavailable = (event) => { if (event.data.size) videoChunks.push(event.data); }; videoRecorder.onstop = async () => { try { const uploaded = await authService.uploadVideo(new Blob(videoChunks, { type: 'video/webm' }), 30, recordedAt.toISOString()); setVideoUrl(uploaded.videoUrl); setVideoRecordedAt(uploaded.recordedAt); setVideoDuration(uploaded.duration); resolve(true); } catch (error) { notify(error.message, 'error'); resolve(false); } }; videoRecorder.start(250); }) : Promise.resolve(false);
       for (let index = 0; index < 30 && !stopRequested.current; index += 1) {
         if (!video.current?.videoWidth) throw new Error('Camera chưa sẵn sàng.');
-        const scale = Math.min(1, 640 / video.current.videoWidth); const canvas = document.createElement('canvas'); canvas.width = Math.round(video.current.videoWidth * scale); canvas.height = Math.round(video.current.videoHeight * scale);
-        canvas.getContext('2d').drawImage(video.current, 0, 0, canvas.width, canvas.height); captured.push(canvas.toDataURL('image/jpeg', 0.65));
+        recordingContext.drawImage(video.current, 0, 0, recordingCanvas.width, recordingCanvas.height); recordingContext.fillStyle = '#000000b8'; recordingContext.fillRect(12, recordingCanvas.height - 45, 245, 31); recordingContext.fillStyle = '#ffffff'; recordingContext.font = '16px sans-serif'; recordingContext.fillText(videoTimestamp(new Date()), 22, recordingCanvas.height - 24); captured.push(recordingCanvas.toDataURL('image/jpeg', 0.65));
         if (model.current) {
-          const predictions = await model.current.predict(canvas);
+          const predictions = await model.current.predict(recordingCanvas);
           finalPrediction = predictions.reduce((best, item) => item.probability > best.probability ? item : best, finalPrediction);
           setPrediction(finalPrediction.className); setConfidence(finalPrediction.probability);
         }
