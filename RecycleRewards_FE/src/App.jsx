@@ -198,18 +198,24 @@ export default function App() {
   if (!authReady) return <main className="login-page"><section className="login-panel"><div className="login-card"><Logo /><p className="hint">Đang kiểm tra phiên đăng nhập...</p></div></section></main>;
   if (!session) return <Login login={login} emailLogin={emailLogin} register={register} notify={notify} />;
   const isProfileRoute = route === '/profile' || route === '/student/settings';
-  const isAdminSubmissionsRoute =
-  route === '/admin/submissions';
+  const isAdminSubmissionsRoute = route === '/admin/submissions';
+  const isAdminQueueRoute = route === '/admin';
 
-if (isProfileRoute) {
-  page = <Profile session={session} setSession={setSession} />;
-} else if (session.role === 'admin' && isAdminSubmissionsRoute) {
-  page = <AdminSubmissions />;
-} else if (session.role === 'admin') {
-  page = isAdminQueueRoute
-    ? <Admin notify={notify} />
-    : <AdminDashboard />;
-}
-  else page = route === '/student/scanner' ? <Scanner session={session} go={go} notify={notify} /> : route === '/student/history' ? <History session={session} /> : <Dashboard session={session} go={go} />;
+  let page;
+  if (isProfileRoute) {
+    page = <Profile session={session} setSession={setSession} />;
+  } else if (session.role === 'admin' && isAdminSubmissionsRoute) {
+    page = <AdminSubmissions />;
+  } else if (session.role === 'admin' && isAdminQueueRoute) {
+    page = <Admin notify={notify} />;
+  } else if (session.role === 'admin') {
+    page = <AdminDashboard />;
+  } else {
+    page = route === '/student/scanner'
+      ? <Scanner session={session} go={go} notify={notify} />
+      : route === '/student/history'
+        ? <History session={session} />
+        : <Dashboard session={session} go={go} />;
+  }
   return <div className="shell"><Nav session={session} route={route} go={go} logout={logout} /><main className="content">{page}</main></div>;
 }
