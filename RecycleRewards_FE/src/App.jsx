@@ -71,7 +71,7 @@ function Scanner({ session, go, notify }) {
       try {
         for (let attempt = 0; attempt < 40 && !window.tmImage; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 100));
         if (!window.tmImage) throw new Error('Chưa tải được thư viện Teachable Machine.');
-        model.current = await window.tmImage.load('/models/my_model/model.json', '/models/my_model/metadata.json');
+        model.current = await window.tmImage.load('/models/model.json', '/models/metadata.json');
         if (active) setModelReady(true);
       } catch (error) { if (active) notify(error.message, 'error'); }
     }
