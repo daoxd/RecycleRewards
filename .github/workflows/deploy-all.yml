@@ -22,8 +22,9 @@ jobs:
           HOST: ${{ secrets.EC2_HOST }}
           USER: ${{ secrets.EC2_USER }}
           BRANCH: ${{ github.ref_name }}
+          ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
         run: |
-          ssh -o StrictHostKeyChecking=no $USER@$HOST "BRANCH='$BRANCH' bash -s" << 'EOF'
+          ssh -o StrictHostKeyChecking=no $USER@$HOST "BRANCH='$BRANCH' ADMIN_EMAILS='$ADMIN_EMAILS' bash -s" << 'EOF'
             BACKEND_DIR=$(find ~ -type d -path "*/RecycleRewards_BE" 2>/dev/null | head -n 1)
             
             if [ -z "$BACKEND_DIR" ]; then
@@ -49,6 +50,7 @@ jobs:
             fi
             
             # Restart hoặc start mới app nếu chưa tồn tại process recycle-backend
+            export ADMIN_EMAILS="${ADMIN_EMAILS:-caothaiduongmcpe123@gmail.com}"
             if pm2 describe recycle-backend > /dev/null 2>&1; then
               pm2 restart recycle-backend --update-env
             else
