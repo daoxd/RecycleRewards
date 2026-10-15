@@ -65,13 +65,20 @@ function Dashboard({ session, go }) {
 }
 function Scanner({ session, go, notify }) {
   const [image, setImage] = useState(''); const [type, setType] = useState(''); const [confidence, setConfidence] = useState(0); const [frames, setFrames] = useState([]); const [frameUrls, setFrameUrls] = useState([]); const [stream, setStream] = useState(null); const [capturing, setCapturing] = useState(false); const [sending, setSending] = useState(false); const video = useRef(null);
+  useEffect(() => {
+    if (!stream || !video.current) return undefined;
+    video.current.srcObject = stream;
+    video.current.play().catch(() => {});
+    return () => { if (video.current) video.current.srcObject = null; };
+  }, [stream]);
   useEffect(() => () => stream?.getTracks().forEach((track) => track.stop()), [stream]);
   async function captureFrames() {
     setCapturing(true);
     try {
       const camera = stream || await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
       if (!stream) setStream(camera);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      for (let attempt = 0; attempt < 20 && !video.current?.videoWidth; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 200));
+      if (!video.current?.videoWidth) throw new Error('Không nhận được hình ảnh từ camera. Hãy kiểm tra quyền camera và thử lại.');
       const captured = [];
       for (let index = 0; index < 5; index += 1) {
         if (!video.current?.videoWidth) throw new Error('Camera chưa sẵn sàng.');
