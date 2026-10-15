@@ -22,7 +22,7 @@ function withTimeout(promise, operation, timeoutMs = 10000) {
 export async function listUsers(req, res) {
   const query = String(req.query.search || '').trim();
   const filter = query ? { $or: [{ name: new RegExp(query, 'i') }, { email: new RegExp(query, 'i') }, { studentId: new RegExp(query, 'i') }] } : {};
-  const users = await User.find(filter).sort({ createdAt: -1 });
+  const users = await User.find(filter).sort({ createdAt: -1 }).maxTimeMS(10000);
   res.json(users.map(publicUser));
 }
 
@@ -32,12 +32,16 @@ export async function createUser(req, res) {
   if (!['student', 'admin'].includes(role)) return res.status(400).json({ message: 'Vai trò không hợp lệ.' });
   if (password.length < 6) return res.status(400).json({ message: 'Mật khẩu cần có ít nhất 6 ký tự.' });
 
+  const normalizedEmail = email.trim().toLowerCase();
+  const existingUser = await User.findOne({ email: normalizedEmail }).maxTimeMS(10000);
+  if (existingUser) return res.status(409).json({ message: 'Email đã tồn tại trong hệ thống.' });
+
   let firebaseUser;
   try {
-    firebaseUser = await withTimeout(createFirebaseUser({ email: email.trim(), password, displayName: name.trim() }), 'Firebase Admin');
+    firebaseUser = await withTimeout(createFirebaseUser({ email: normalizedEmail, password, displayName: name.trim() }), 'Firebase Admin');
     const user = await withTimeout(User.create({
       firebaseUid: firebaseUser.uid,
-      email: email.trim(),
+      email: normalizedEmail,
       name: name.trim(),
       studentId: studentId?.trim() || firebaseUser.uid,
       school: school?.trim() || 'Đại học Công nghệ GTVT',
