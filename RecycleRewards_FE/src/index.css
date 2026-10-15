@@ -126,3 +126,8 @@ label { display: block; font-size: 12px; font-weight: 700; margin: 17px 0 7px; c
 .frame-strip img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 7px; }
 .drop-zone .camera-preview { display: block; width: 100%; height: min(52vw, 430px); min-height: 330px; object-fit: cover; background: #102d25; }
 .drop-zone .camera-hidden { display: none; }
+.drop-zone { position: relative; }
+.prediction-badge { position: absolute; top: 14px; left: 14px; right: 14px; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; color: white; background: #102d25d9; border: 1px solid #ffffff40; border-radius: 9px; font-size: 11px; }
+.prediction-badge strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prediction-badge span { flex: 0 0 auto; color: #a6edc9; font-weight: 800; }
+.drop-zone .btn + .btn { margin-left: 6px; }

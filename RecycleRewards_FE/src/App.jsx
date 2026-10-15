@@ -64,7 +64,20 @@ function Dashboard({ session, go }) {
   return <><Header eyebrow="HÀNH TRÌNH XANH CỦA BẠN" title={'Xin chào, ' + firstName + '!'} subtitle="Mỗi món đồ tái chế là một bước nhỏ cho môi trường." /><section className="score-banner"><div><em>ĐIỂM XANH CỦA BẠN</em><strong>{dashboard.totalPoints} <small>điểm</small></strong><p>Cứ tiếp tục nhé, bạn đang làm rất tốt!</p></div><Button variant="white" onClick={() => go('/student/scanner')}>⌁ Quét vật phẩm →</Button></section><section className="metric-grid"><Metric icon="♻" value={dashboard.totalSubmissions} label="Vật phẩm đã gửi" /><Metric icon="✓" value={dashboard.approvedCount} label="Được xác nhận" /><Metric icon="◷" value={dashboard.pendingCount} label="Đang chờ duyệt" /></section>{data && <section className="surface dashboard-stats"><div className="section-heading"><div><h2>Thống kê tái chế</h2><p>Tổng quan trạng thái các vật phẩm bạn đã gửi</p></div><span className="approval-rate">{approvalRate}% <small>được duyệt</small></span></div><div className="status-bar" role="img" aria-label={'Đã duyệt ' + approved + ', chờ duyệt ' + pending + ', từ chối ' + rejected}>{total > 0 && <><span className="approved-segment" style={{ width: (approved / total * 100) + '%' }} /><span className="pending-segment" style={{ width: (pending / total * 100) + '%' }} /><span className="rejected-segment" style={{ width: (rejected / total * 100) + '%' }} /></>}</div><div className="status-legend"><span><i className="approved-dot" />Đã duyệt <b>{approved}</b></span><span><i className="pending-dot" />Chờ duyệt <b>{pending}</b></span><span><i className="rejected-dot" />Từ chối <b>{rejected}</b></span></div></section>}<section className="surface"><div className="section-heading"><div><h2>Hoạt động gần đây</h2><p>Theo dõi hành trình xanh của bạn</p></div><button className="text-button" onClick={() => go('/student/history')}>Xem tất cả →</button></div>{error ? <ErrorState error={error} /> : dashboard.recent.length ? dashboard.recent.map((item) => <Row key={item.id} item={item} />) : <Empty title="Chưa có hoạt động nào" text="Hãy gửi vật phẩm tái chế đầu tiên." />}</section></>;
 }
 function Scanner({ session, go, notify }) {
-  const [image, setImage] = useState(''); const [type, setType] = useState(''); const [confidence, setConfidence] = useState(0); const [frames, setFrames] = useState([]); const [frameUrls, setFrameUrls] = useState([]); const [stream, setStream] = useState(null); const [capturing, setCapturing] = useState(false); const [sending, setSending] = useState(false); const video = useRef(null);
+  const [image, setImage] = useState(''); const [type, setType] = useState(''); const [confidence, setConfidence] = useState(0); const [prediction, setPrediction] = useState(''); const [frames, setFrames] = useState([]); const [frameUrls, setFrameUrls] = useState([]); const [stream, setStream] = useState(null); const [capturing, setCapturing] = useState(false); const [sending, setSending] = useState(false); const [modelReady, setModelReady] = useState(false); const video = useRef(null); const model = useRef(null); const stopRequested = useRef(false);
+  useEffect(() => {
+    let active = true;
+    async function loadModel() {
+      try {
+        for (let attempt = 0; attempt < 40 && !window.tmImage; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+        if (!window.tmImage) throw new Error('Chưa tải được thư viện Teachable Machine.');
+        model.current = await window.tmImage.load('/models/my_model/model.json', '/models/my_model/metadata.json');
+        if (active) setModelReady(true);
+      } catch (error) { if (active) notify(error.message, 'error'); }
+    }
+    loadModel();
+    return () => { active = false; };
+  }, [notify]);
   useEffect(() => {
     if (!stream || !video.current) return undefined;
     video.current.srcObject = stream;
@@ -74,6 +87,7 @@ function Scanner({ session, go, notify }) {
   useEffect(() => () => stream?.getTracks().forEach((track) => track.stop()), [stream]);
   async function captureFrames() {
     setCapturing(true);
+    stopRequested.current = false;
     try {
       const camera = stream || await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
       if (video.current) {
@@ -84,16 +98,23 @@ function Scanner({ session, go, notify }) {
       for (let attempt = 0; attempt < 20 && !video.current?.videoWidth; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 200));
       if (!video.current?.videoWidth) throw new Error('Không nhận được hình ảnh từ camera. Hãy kiểm tra quyền camera và thử lại.');
       const captured = [];
-      for (let index = 0; index < 30; index += 1) {
+      let finalPrediction = { className: '', probability: 0 };
+      for (let index = 0; index < 30 && !stopRequested.current; index += 1) {
         if (!video.current?.videoWidth) throw new Error('Camera chưa sẵn sàng.');
         const scale = Math.min(1, 640 / video.current.videoWidth); const canvas = document.createElement('canvas'); canvas.width = Math.round(video.current.videoWidth * scale); canvas.height = Math.round(video.current.videoHeight * scale);
         canvas.getContext('2d').drawImage(video.current, 0, 0, canvas.width, canvas.height); captured.push(canvas.toDataURL('image/jpeg', 0.65));
+        if (model.current) {
+          const predictions = await model.current.predict(canvas);
+          finalPrediction = predictions.reduce((best, item) => item.probability > best.probability ? item : best, finalPrediction);
+          setPrediction(finalPrediction.className); setConfidence(finalPrediction.probability);
+        }
         await new Promise((resolve) => setTimeout(resolve, 150));
       }
-      setFrames(captured); setImage(captured[0]); setConfidence(0.88); camera.getTracks().forEach((track) => track.stop()); setStream(null);
-      notify('Đã trích xuất 30 frame từ video.', 'success');
+      setFrames(captured); setImage(captured[0]); setConfidence(finalPrediction.probability || 0.88); setPrediction(finalPrediction.className || 'Đã lấy mẫu'); camera.getTracks().forEach((track) => track.stop()); setStream(null);
+      notify(`Đã lấy ${captured.length} frame từ video.`, 'success');
     } catch (error) { notify(error.message || 'Không thể mở camera.', 'error'); } finally { setCapturing(false); }
   }
+  function stopSampling() { stopRequested.current = true; stream?.getTracks().forEach((track) => track.stop()); setStream(null); }
   async function send() {
     if (frames.length < 3 || !type) return;
     setSending(true);
@@ -106,7 +127,7 @@ function Scanner({ session, go, notify }) {
       notify('Đã gửi vật phẩm! Điểm sẽ được cộng sau khi duyệt.', 'success'); go('/student/history');
     } catch (e) { notify(e.message, 'error'); } finally { setSending(false); }
   }
-  return <><Header eyebrow="NHẬN DIỆN TÁI CHẾ" title="Quay vật phẩm" subtitle="Một lần bấm sẽ tự động quay và lấy 30 frame trong khoảng 4–5 giây." /><section className="scanner-grid"><div className="surface upload-surface"><div className="drop-zone"><video ref={video} className={stream ? 'camera-preview' : 'camera-preview camera-hidden'} autoPlay muted playsInline />{!stream && (image ? <img src={image} alt="Frame vật phẩm đã chọn" /> : <><b>⌁</b><strong>Chưa có video</strong><span>Bấm nút để quay tự động 30 frame</span></>)}<Button type="button" variant="outline" disabled={capturing} onClick={captureFrames}>{capturing ? 'Đang quay và lấy frame...' : '⇥ Quay và lấy 30 frame'}</Button></div>{frames.length > 0 && <div className="frame-strip">{frames.map((frame, index) => <img key={frame} src={frame} alt={'Frame ' + (index + 1)} />)}</div>}</div><aside className="surface scan-result"><em>CHECK-AI</em><h2>Vật phẩm của bạn</h2><p>Chọn loại vật phẩm sau khi camera đã trích đủ frame.</p><label>Loại vật phẩm</label><select value={type} onChange={(e) => setType(e.target.value)}><option value="">Chọn loại vật phẩm</option>{wasteTypes.map((item) => <option key={item}>{item}</option>)}</select><div className="result-stats"><span>Độ tin cậy<b>{confidence ? Math.round(confidence * 100) + '%' : '—'}</b></span><span>Frame<b>{frames.length}/30</b></span></div><Button className="wide" disabled={frames.length < 30 || !type || sending} onClick={send}>{sending ? 'Đang kiểm tra và gửi...' : 'Check-AI và gửi →'}</Button><small className="secure">Chỉ bài đạt confidence từ 0.5 mới được chuyển vào trạng thái pending.</small></aside></section></>;
+  return <><Header eyebrow="NHẬN DIỆN TÁI CHẾ" title="Quay vật phẩm" subtitle="Teachable Machine gắn nhãn trực tiếp và lấy tối đa 30 frame." /><section className="scanner-grid"><div className="surface upload-surface"><div className="drop-zone"><video ref={video} className={stream ? 'camera-preview' : 'camera-preview camera-hidden'} autoPlay muted playsInline />{(stream || image) && <div className="prediction-badge"><strong>{prediction || 'Đang nhận diện...'}</strong><span>{confidence ? Math.round(confidence * 100) + '%' : '—'}</span></div>}{!stream && (image ? <img src={image} alt="Frame vật phẩm đã chọn" /> : <><b>⌁</b><strong>{modelReady ? 'Sẵn sàng nhận diện' : 'Đang tải model...'}</strong><span>Bấm nút để quay tự động 30 frame</span></>)}<Button type="button" variant="outline" disabled={capturing || !modelReady} onClick={captureFrames}>{capturing ? 'Đang quay và lấy frame...' : '⇥ Quay và lấy 30 frame'}</Button>{capturing && <Button type="button" variant="danger" onClick={stopSampling}>■ Dừng lấy mẫu</Button>}</div>{frames.length > 0 && <div className="frame-strip">{frames.map((frame, index) => <img key={frame} src={frame} alt={'Frame ' + (index + 1)} />)}</div>}</div><aside className="surface scan-result"><em>CHECK-AI</em><h2>Vật phẩm của bạn</h2><p>Nhãn và confidence lấy từ model Teachable Machine.</p><label>Loại vật phẩm</label><select value={type} onChange={(e) => setType(e.target.value)}><option value="">Chọn loại vật phẩm</option>{wasteTypes.map((item) => <option key={item}>{item}</option>)}</select><div className="result-stats"><span>Độ tin cậy<b>{confidence ? Math.round(confidence * 100) + '%' : '—'}</b></span><span>Frame<b>{frames.length}/30</b></span></div><Button className="wide" disabled={frames.length < 3 || !type || sending} onClick={send}>{sending ? 'Đang kiểm tra và gửi...' : 'Check-AI và gửi →'}</Button><small className="secure">Chỉ bài đạt confidence từ 0.5 mới được chuyển vào trạng thái pending.</small></aside></section></>;
 }
 function History({ session }) {
   const [items, setItems] = useState([]); const [query, setQuery] = useState(''); const [filter, setFilter] = useState('all'); const [error, setError] = useState('');
