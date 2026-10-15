@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Kiểm tra tính xác thực của ảnh được chụp bằng Timemark.">
+  <title>TrueFrame — Xác thực ảnh Timemark</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="TrueFrame - trang chủ">
+      <span class="brand-mark">TF</span><span>TrueFrame</span>
+    </a>
+    <span class="service-state"><i></i> Timemark verifier</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow">Xác minh nguồn gốc hình ảnh</div>
+      <h1>Ảnh thật.<br><em>Kết quả rõ ràng.</em></h1>
+      <p>Tải lên ảnh được chụp bằng Timemark. Hệ thống sẽ đối chiếu dấu thời gian, vị trí và mã chống giả trực tiếp với dịch vụ xác thực.</p>
+      <div class="steps" aria-label="Quy trình ba bước">
+        <span><b>01</b> Chọn ảnh</span><span><b>02</b> Đối chiếu</span><span><b>03</b> Nhận kết quả</span>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <form id="upload-form" class="upload-card">
+        <div class="card-heading">
+          <span>ẢNH CẦN KIỂM TRA</span><span class="limit">Tối đa 15 MB</span>
+        </div>
+        <label id="drop-zone" class="drop-zone" for="image-input">
+          <input id="image-input" type="file" name="image" accept="image/jpeg,image/png,image/webp" hidden>
+          <img id="preview" alt="Ảnh xem trước">
+          <div id="drop-copy" class="drop-copy">
+            <span class="upload-icon">↥</span>
+            <strong>Thả ảnh vào đây</strong>
+            <small>hoặc nhấn để chọn từ thiết bị</small>
+            <span class="file-types">JPG · PNG · WEBP</span>
+          </div>
+        </label>
+        <div id="file-meta" class="file-meta" hidden>
+          <div><strong id="file-name"></strong><small id="file-size"></small></div>
+          <button id="remove-file" type="button" aria-label="Bỏ ảnh">×</button>
+        </div>
+        <button id="submit-button" class="primary-button" type="submit" disabled>
+          <span>Xác thực ảnh</span><span aria-hidden="true">→</span>
+        </button>
+        <p class="privacy">Ảnh tạm trên máy chủ được xóa ngay sau khi gửi sang dịch vụ Timemark.</p>
+      </form>
+
+      <aside id="result-panel" class="result-card" aria-live="polite">
+        <div id="empty-result" class="empty-result">
+          <span class="scan-glyph">⌁</span>
+          <h2>Kết quả sẽ xuất hiện tại đây</h2>
+          <p>Thông tin thời gian, địa điểm, thiết bị và mã chống giả sẽ được hiển thị sau khi xác thực.</p>
+        </div>
+        <div id="loading-result" class="loading-result" hidden>
+          <div class="scanner"><i></i></div>
+          <h2>Đang đối chiếu ảnh…</h2>
+          <p>Timemark có thể cần từ vài giây đến một phút để xử lý.</p>
+        </div>
+        <div id="verification-result" hidden></div>
+      </aside>
+    </section>
+  </main>
+
+  <footer><span>TRUEFRAME / 2026</span><span>Kết quả phụ thuộc vào API Timemark</span></footer>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
