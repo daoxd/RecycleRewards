@@ -1,5 +1,7 @@
 import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 function getCredential() {
 	if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
@@ -8,6 +10,10 @@ function getCredential() {
 	if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64) {
 		const json = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64, 'base64').toString('utf8');
 		return cert(parseServiceAccount(json));
+	}
+	if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+		const filePath = path.resolve(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+		return cert(parseServiceAccount(readFileSync(filePath, 'utf8')));
 	}
 	return applicationDefault();
 }

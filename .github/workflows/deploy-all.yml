@@ -23,8 +23,10 @@ jobs:
           USER: ${{ secrets.EC2_USER }}
           BRANCH: ${{ github.ref_name }}
           ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RECYCLE_REWARDS_2026 }}
         run: |
-          ssh -o StrictHostKeyChecking=no $USER@$HOST "BRANCH='$BRANCH' ADMIN_EMAILS='$ADMIN_EMAILS' bash -s" << 'EOF'
+          SERVICE_ACCOUNT_B64=$(printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | base64 -w 0)
+          ssh -o StrictHostKeyChecking=no $USER@$HOST "BRANCH='$BRANCH' ADMIN_EMAILS='$ADMIN_EMAILS' SERVICE_ACCOUNT_B64='$SERVICE_ACCOUNT_B64' bash -s" << 'EOF'
             BACKEND_DIR=$(find ~ -type d -path "*/RecycleRewards_BE" 2>/dev/null | head -n 1)
             
             if [ -z "$BACKEND_DIR" ]; then
@@ -41,6 +43,11 @@ jobs:
             git reset --hard "origin/$BRANCH"
             cd "$BACKEND_DIR"
             npm install
+
+            if [ -n "$SERVICE_ACCOUNT_B64" ]; then
+              printf '%s' "$SERVICE_ACCOUNT_B64" | base64 -d > "$BACKEND_DIR/firebase-service-account.json"
+            fi
+            export GOOGLE_APPLICATION_CREDENTIALS="$BACKEND_DIR/firebase-service-account.json"
             
             # Kiểm tra và tự động cài đặt PM2 nếu trên server chưa có
             export PATH=$PATH:/home/ubuntu/.npm/bin:/usr/bin:/usr/local/bin

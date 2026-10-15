@@ -33,7 +33,7 @@ export async function createUser(req, res) {
   if (password.length < 6) return res.status(400).json({ message: 'Mật khẩu cần có ít nhất 6 ký tự.' });
 
   const normalizedEmail = email.trim().toLowerCase();
-  const existingUser = await User.findOne({ email: normalizedEmail }).maxTimeMS(10000);
+  const existingUser = await withTimeout(User.findOne({ email: normalizedEmail }).maxTimeMS(10000), 'MongoDB');
   if (existingUser) return res.status(409).json({ message: 'Email đã tồn tại trong hệ thống.' });
 
   let firebaseUser;
