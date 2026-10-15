@@ -21,6 +21,7 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '8mb' }));
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+app.use('/api/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 app.get('/api/health', (_req, res) => res.json({ ok: true, database: databaseState() }));
 app.use('/api', routes);
 app.use('/api/v1', routes);

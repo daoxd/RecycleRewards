@@ -13,7 +13,7 @@ export async function saveSubmissionFrames(frames, requestBaseUrl = '') {
     const extension = match[1].toLowerCase() === 'jpeg' || match[1].toLowerCase() === 'jpg' ? 'jpg' : match[1].toLowerCase();
     const filename = `${randomUUID()}.${extension}`;
     await writeFile(path.join(uploadDirectory, filename), Buffer.from(match[2], 'base64'));
-    return `${publicBaseUrl}/uploads/submissions/${filename}`;
+    return `${publicBaseUrl}/api/uploads/submissions/${filename}`;
   }));
 }
 
@@ -23,5 +23,5 @@ export async function saveSubmissionVideo(file, requestBaseUrl = '') {
   const filename = `${randomUUID()}.${extension}`;
   await writeFile(path.join(videoDirectory, filename), file.buffer);
   const publicBaseUrl = String(process.env.PUBLIC_API_URL || requestBaseUrl).replace(/\/$/, '');
-  return `${publicBaseUrl}/uploads/submissions/videos/${filename}`;
+  return `${publicBaseUrl}/api/uploads/submissions/videos/${filename}`;
 }
