@@ -11,7 +11,7 @@ const submissionSchema = new mongoose.Schema({
 	weightKg: { type: Number, default: 0, min: 0 },
 	imageDataUrl: { type: String, default: '' },
 	imageUrl: { type: String, default: '' },
-	frameUrls: { type: [String], default: [] },
+	frameUrls: { type: [String], default: [], validate: [(frames) => frames.length <= 30, 'Tối đa 30 frame cho một bài nộp.'] },
 	feedback: { type: String, default: '' },
 	submittedAt: { type: Date, default: Date.now, index: true },
 	reviewedAt: Date,

@@ -84,14 +84,14 @@ function Scanner({ session, go, notify }) {
       for (let attempt = 0; attempt < 20 && !video.current?.videoWidth; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 200));
       if (!video.current?.videoWidth) throw new Error('Không nhận được hình ảnh từ camera. Hãy kiểm tra quyền camera và thử lại.');
       const captured = [];
-      for (let index = 0; index < 5; index += 1) {
+      for (let index = 0; index < 30; index += 1) {
         if (!video.current?.videoWidth) throw new Error('Camera chưa sẵn sàng.');
-        const canvas = document.createElement('canvas'); canvas.width = video.current.videoWidth; canvas.height = video.current.videoHeight;
-        canvas.getContext('2d').drawImage(video.current, 0, 0, canvas.width, canvas.height); captured.push(canvas.toDataURL('image/jpeg', 0.78));
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        const scale = Math.min(1, 640 / video.current.videoWidth); const canvas = document.createElement('canvas'); canvas.width = Math.round(video.current.videoWidth * scale); canvas.height = Math.round(video.current.videoHeight * scale);
+        canvas.getContext('2d').drawImage(video.current, 0, 0, canvas.width, canvas.height); captured.push(canvas.toDataURL('image/jpeg', 0.65));
+        await new Promise((resolve) => setTimeout(resolve, 150));
       }
       setFrames(captured); setImage(captured[0]); setConfidence(0.88); camera.getTracks().forEach((track) => track.stop()); setStream(null);
-      notify('Đã trích xuất 5 frame từ video.', 'success');
+      notify('Đã trích xuất 30 frame từ video.', 'success');
     } catch (error) { notify(error.message || 'Không thể mở camera.', 'error'); } finally { setCapturing(false); }
   }
   async function send() {
@@ -106,7 +106,7 @@ function Scanner({ session, go, notify }) {
       notify('Đã gửi vật phẩm! Điểm sẽ được cộng sau khi duyệt.', 'success'); go('/student/history');
     } catch (e) { notify(e.message, 'error'); } finally { setSending(false); }
   }
-  return <><Header eyebrow="NHẬN DIỆN TÁI CHẾ" title="Quay vật phẩm" subtitle="Camera sẽ trích xuất 5 frame trong khoảng 3–5 giây để kiểm tra." /><section className="scanner-grid"><div className="surface upload-surface"><div className="drop-zone"><video ref={video} className={stream ? 'camera-preview' : 'camera-preview camera-hidden'} autoPlay muted playsInline />{!stream && (image ? <img src={image} alt="Frame vật phẩm đã chọn" /> : <><b>⌁</b><strong>Chưa có video</strong><span>Bật camera để bắt đầu quay vật phẩm</span></>)}<Button type="button" variant="outline" disabled={capturing} onClick={captureFrames}>{capturing ? 'Đang trích frame...' : stream ? 'Đang quay...' : '⇥ Bật camera và quay'}</Button></div>{frames.length > 0 && <div className="frame-strip">{frames.map((frame, index) => <img key={frame} src={frame} alt={'Frame ' + (index + 1)} />)}</div>}</div><aside className="surface scan-result"><em>CHECK-AI</em><h2>Vật phẩm của bạn</h2><p>Chọn loại vật phẩm sau khi camera đã trích đủ frame.</p><label>Loại vật phẩm</label><select value={type} onChange={(e) => setType(e.target.value)}><option value="">Chọn loại vật phẩm</option>{wasteTypes.map((item) => <option key={item}>{item}</option>)}</select><div className="result-stats"><span>Độ tin cậy<b>{confidence ? Math.round(confidence * 100) + '%' : '—'}</b></span><span>Frame<b>{frames.length}/5</b></span></div><Button className="wide" disabled={frames.length < 3 || !type || sending} onClick={send}>{sending ? 'Đang kiểm tra và gửi...' : 'Check-AI và gửi →'}</Button><small className="secure">Chỉ bài đạt confidence từ 0.5 mới được chuyển vào trạng thái pending.</small></aside></section></>;
+  return <><Header eyebrow="NHẬN DIỆN TÁI CHẾ" title="Quay vật phẩm" subtitle="Một lần bấm sẽ tự động quay và lấy 30 frame trong khoảng 4–5 giây." /><section className="scanner-grid"><div className="surface upload-surface"><div className="drop-zone"><video ref={video} className={stream ? 'camera-preview' : 'camera-preview camera-hidden'} autoPlay muted playsInline />{!stream && (image ? <img src={image} alt="Frame vật phẩm đã chọn" /> : <><b>⌁</b><strong>Chưa có video</strong><span>Bấm nút để quay tự động 30 frame</span></>)}<Button type="button" variant="outline" disabled={capturing} onClick={captureFrames}>{capturing ? 'Đang quay và lấy frame...' : '⇥ Quay và lấy 30 frame'}</Button></div>{frames.length > 0 && <div className="frame-strip">{frames.map((frame, index) => <img key={frame} src={frame} alt={'Frame ' + (index + 1)} />)}</div>}</div><aside className="surface scan-result"><em>CHECK-AI</em><h2>Vật phẩm của bạn</h2><p>Chọn loại vật phẩm sau khi camera đã trích đủ frame.</p><label>Loại vật phẩm</label><select value={type} onChange={(e) => setType(e.target.value)}><option value="">Chọn loại vật phẩm</option>{wasteTypes.map((item) => <option key={item}>{item}</option>)}</select><div className="result-stats"><span>Độ tin cậy<b>{confidence ? Math.round(confidence * 100) + '%' : '—'}</b></span><span>Frame<b>{frames.length}/30</b></span></div><Button className="wide" disabled={frames.length < 30 || !type || sending} onClick={send}>{sending ? 'Đang kiểm tra và gửi...' : 'Check-AI và gửi →'}</Button><small className="secure">Chỉ bài đạt confidence từ 0.5 mới được chuyển vào trạng thái pending.</small></aside></section></>;
 }
 function History({ session }) {
   const [items, setItems] = useState([]); const [query, setQuery] = useState(''); const [filter, setFilter] = useState('all'); const [error, setError] = useState('');

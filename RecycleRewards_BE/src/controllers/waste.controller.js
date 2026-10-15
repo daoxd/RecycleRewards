@@ -40,7 +40,7 @@ export async function submitWaste(req, res) {
     weightKg: parsedWeightKg,
     imageDataUrl: imageDataUrl || '',
     imageUrl: imageUrl || '',
-    frameUrls: Array.isArray(frameUrls) ? frameUrls.slice(0, 5) : [],
+      frameUrls: Array.isArray(frameUrls) ? frameUrls.slice(0, 30) : [],
     points: 0,
   });
   res.status(201).json(submission.toJSON());
@@ -48,7 +48,7 @@ export async function submitWaste(req, res) {
 
 export async function uploadFrames(req, res) {
   const frames = Array.isArray(req.body?.frames) ? req.body.frames : [];
-  if (frames.length < 3 || frames.length > 5) return res.status(400).json({ message: 'Cần tải lên từ 3 đến 5 frame.' });
+    if (frames.length < 3 || frames.length > 30) return res.status(400).json({ message: 'Cần tải lên từ 3 đến 30 frame.' });
   const requestBaseUrl = `${req.protocol}://${req.get('host')}`;
   const frameUrls = await saveSubmissionFrames(frames, requestBaseUrl);
   res.status(201).json({ frameUrls });
