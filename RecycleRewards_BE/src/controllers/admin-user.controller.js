@@ -5,6 +5,20 @@ function publicUser(user) {
   return user.toJSON();
 }
 
+function withTimeout(promise, operation, timeoutMs = 10000) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new Error(`${operation} quá thời gian chờ.`);
+        error.status = 503;
+        reject(error);
+      }, timeoutMs);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 export async function listUsers(req, res) {
   const query = String(req.query.search || '').trim();
   const filter = query ? { $or: [{ name: new RegExp(query, 'i') }, { email: new RegExp(query, 'i') }, { studentId: new RegExp(query, 'i') }] } : {};
@@ -20,18 +34,18 @@ export async function createUser(req, res) {
 
   let firebaseUser;
   try {
-    firebaseUser = await createFirebaseUser({ email: email.trim(), password, displayName: name.trim() });
-    const user = await User.create({
+    firebaseUser = await withTimeout(createFirebaseUser({ email: email.trim(), password, displayName: name.trim() }), 'Firebase Admin');
+    const user = await withTimeout(User.create({
       firebaseUid: firebaseUser.uid,
       email: email.trim(),
       name: name.trim(),
       studentId: studentId?.trim() || firebaseUser.uid,
       school: school?.trim() || 'Đại học Công nghệ GTVT',
       role,
-    });
+    }), 'MongoDB');
     res.status(201).json({ user: publicUser(user) });
   } catch (error) {
-    if (firebaseUser) await deleteFirebaseUser(firebaseUser.uid).catch(() => {});
+    if (firebaseUser) deleteFirebaseUser(firebaseUser.uid).catch((cleanupError) => console.error('Firebase cleanup failed:', cleanupError.message));
     if (error.code === 11000 || error.code === 'auth/email-already-exists') return res.status(409).json({ message: 'Email hoặc mã người dùng đã tồn tại.' });
     throw error;
   }
