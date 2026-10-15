@@ -64,7 +64,7 @@ function Dashboard({ session, go }) {
   return <><Header eyebrow="HÀNH TRÌNH XANH CỦA BẠN" title={'Xin chào, ' + firstName + '!'} subtitle="Mỗi món đồ tái chế là một bước nhỏ cho môi trường." /><section className="score-banner"><div><em>ĐIỂM XANH CỦA BẠN</em><strong>{dashboard.totalPoints} <small>điểm</small></strong><p>Cứ tiếp tục nhé, bạn đang làm rất tốt!</p></div><Button variant="white" onClick={() => go('/student/scanner')}>⌁ Quét vật phẩm →</Button></section><section className="metric-grid"><Metric icon="♻" value={dashboard.totalSubmissions} label="Vật phẩm đã gửi" /><Metric icon="✓" value={dashboard.approvedCount} label="Được xác nhận" /><Metric icon="◷" value={dashboard.pendingCount} label="Đang chờ duyệt" /></section>{data && <section className="surface dashboard-stats"><div className="section-heading"><div><h2>Thống kê tái chế</h2><p>Tổng quan trạng thái các vật phẩm bạn đã gửi</p></div><span className="approval-rate">{approvalRate}% <small>được duyệt</small></span></div><div className="status-bar" role="img" aria-label={'Đã duyệt ' + approved + ', chờ duyệt ' + pending + ', từ chối ' + rejected}>{total > 0 && <><span className="approved-segment" style={{ width: (approved / total * 100) + '%' }} /><span className="pending-segment" style={{ width: (pending / total * 100) + '%' }} /><span className="rejected-segment" style={{ width: (rejected / total * 100) + '%' }} /></>}</div><div className="status-legend"><span><i className="approved-dot" />Đã duyệt <b>{approved}</b></span><span><i className="pending-dot" />Chờ duyệt <b>{pending}</b></span><span><i className="rejected-dot" />Từ chối <b>{rejected}</b></span></div></section>}<section className="surface"><div className="section-heading"><div><h2>Hoạt động gần đây</h2><p>Theo dõi hành trình xanh của bạn</p></div><button className="text-button" onClick={() => go('/student/history')}>Xem tất cả →</button></div>{error ? <ErrorState error={error} /> : dashboard.recent.length ? dashboard.recent.map((item) => <Row key={item.id} item={item} />) : <Empty title="Chưa có hoạt động nào" text="Hãy gửi vật phẩm tái chế đầu tiên." />}</section></>;
 }
 function Scanner({ session, go, notify }) {
-  const [image, setImage] = useState(''); const [type, setType] = useState(''); const [confidence, setConfidence] = useState(0); const [prediction, setPrediction] = useState(''); const [frames, setFrames] = useState([]); const [frameUrls, setFrameUrls] = useState([]); const [stream, setStream] = useState(null); const [capturing, setCapturing] = useState(false); const [sending, setSending] = useState(false); const [modelReady, setModelReady] = useState(false); const video = useRef(null); const model = useRef(null); const stopRequested = useRef(false);
+  const [image, setImage] = useState(''); const [type, setType] = useState(''); const [confidence, setConfidence] = useState(0); const [prediction, setPrediction] = useState(''); const [frames, setFrames] = useState([]); const [frameUrls, setFrameUrls] = useState([]); const [videoUrl, setVideoUrl] = useState(''); const [videoRecordedAt, setVideoRecordedAt] = useState(''); const [videoDuration, setVideoDuration] = useState(0); const [stream, setStream] = useState(null); const [capturing, setCapturing] = useState(false); const [recording, setRecording] = useState(false); const [sending, setSending] = useState(false); const [modelReady, setModelReady] = useState(false); const video = useRef(null); const model = useRef(null); const stopRequested = useRef(false); const recorder = useRef(null); const recordTimer = useRef(null);
   useEffect(() => {
     let active = true;
     async function loadModel() {
@@ -99,6 +99,8 @@ function Scanner({ session, go, notify }) {
       if (!video.current?.videoWidth) throw new Error('Không nhận được hình ảnh từ camera. Hãy kiểm tra quyền camera và thử lại.');
       const captured = [];
       let finalPrediction = { className: '', probability: 0 };
+      const videoChunks = []; const recordedAt = new Date(); const videoRecorder = window.MediaRecorder ? new MediaRecorder(camera, { mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm' }) : null; recorder.current = videoRecorder;
+      const videoUploaded = videoRecorder ? new Promise((resolve) => { videoRecorder.ondataavailable = (event) => { if (event.data.size) videoChunks.push(event.data); }; videoRecorder.onstop = async () => { try { const uploaded = await authService.uploadVideo(new Blob(videoChunks, { type: 'video/webm' }), 30, recordedAt.toISOString()); setVideoUrl(uploaded.videoUrl); setVideoRecordedAt(uploaded.recordedAt); setVideoDuration(uploaded.duration); resolve(true); } catch (error) { notify(error.message, 'error'); resolve(false); } }; videoRecorder.start(250); }) : Promise.resolve(false);
       for (let index = 0; index < 30 && !stopRequested.current; index += 1) {
         if (!video.current?.videoWidth) throw new Error('Camera chưa sẵn sàng.');
         const scale = Math.min(1, 640 / video.current.videoWidth); const canvas = document.createElement('canvas'); canvas.width = Math.round(video.current.videoWidth * scale); canvas.height = Math.round(video.current.videoHeight * scale);
@@ -108,13 +110,34 @@ function Scanner({ session, go, notify }) {
           finalPrediction = predictions.reduce((best, item) => item.probability > best.probability ? item : best, finalPrediction);
           setPrediction(finalPrediction.className); setConfidence(finalPrediction.probability);
         }
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
+      if (videoRecorder && videoRecorder.state === 'recording') videoRecorder.stop();
+      await videoUploaded;
       setFrames(captured); setImage(captured[0]); setConfidence(finalPrediction.probability || 0.88); setPrediction(finalPrediction.className || 'Đã lấy mẫu'); camera.getTracks().forEach((track) => track.stop()); setStream(null);
       notify(`Đã lấy ${captured.length} frame từ video.`, 'success');
     } catch (error) { notify(error.message || 'Không thể mở camera.', 'error'); } finally { setCapturing(false); }
   }
-  function stopSampling() { stopRequested.current = true; stream?.getTracks().forEach((track) => track.stop()); setStream(null); }
+  function stopSampling() { stopRequested.current = true; if (recorder.current?.state === 'recording') recorder.current.stop(); stream?.getTracks().forEach((track) => track.stop()); setStream(null); }
+  async function recordVideo() {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return notify('Thiết bị không hỗ trợ quay video.', 'error');
+    try {
+      const camera = stream || await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      if (video.current) { video.current.srcObject = camera; await video.current.play(); }
+      if (!stream) setStream(camera);
+      const recordedAt = new Date(); const chunks = []; const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+      const mediaRecorder = new MediaRecorder(camera, { mimeType }); recorder.current = mediaRecorder; setRecording(true); setVideoRecordedAt(recordedAt.toISOString());
+      mediaRecorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      mediaRecorder.onstop = async () => {
+        clearTimeout(recordTimer.current); setRecording(false); const blob = new Blob(chunks, { type: 'video/webm' });
+        try { const uploaded = await authService.uploadVideo(blob, 30, recordedAt.toISOString()); setVideoUrl(uploaded.videoUrl); setVideoDuration(uploaded.duration); notify('Đã upload video 30 giây.', 'success'); }
+        catch (error) { notify(error.message, 'error'); }
+        finally { camera.getTracks().forEach((track) => track.stop()); setStream(null); recorder.current = null; }
+      };
+      mediaRecorder.start(250); recordTimer.current = setTimeout(() => mediaRecorder.stop(), 30000);
+    } catch (error) { setRecording(false); notify(error.message || 'Không thể quay video.', 'error'); }
+  }
+  function stopRecording() { clearTimeout(recordTimer.current); if (recorder.current?.state === 'recording') recorder.current.stop(); }
   async function send() {
     if (frames.length < 3 || !type) return;
     setSending(true);
@@ -123,7 +146,7 @@ function Scanner({ session, go, notify }) {
       if (!ai.accepted) throw new Error(ai.message);
       const uploaded = await authService.uploadFrames(frames);
       setFrameUrls(uploaded.frameUrls);
-      await authService.createSubmission({ wasteType: type, confidence, imageDataUrl: image, imageUrl: uploaded.frameUrls[0], frameUrls: uploaded.frameUrls });
+      await authService.createSubmission({ wasteType: type, confidence, imageDataUrl: image, imageUrl: uploaded.frameUrls[0], frameUrls: uploaded.frameUrls, videoUrl, videoRecordedAt, videoDurationSec: videoDuration });
       notify('Đã gửi vật phẩm! Điểm sẽ được cộng sau khi duyệt.', 'success'); go('/student/history');
     } catch (e) { notify(e.message, 'error'); } finally { setSending(false); }
   }

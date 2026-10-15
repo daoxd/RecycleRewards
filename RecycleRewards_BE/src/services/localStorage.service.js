@@ -3,6 +3,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const uploadDirectory = path.resolve(process.cwd(), 'uploads', 'submissions');
+const videoDirectory = path.resolve(uploadDirectory, 'videos');
 export async function saveSubmissionFrames(frames, requestBaseUrl = '') {
   await mkdir(uploadDirectory, { recursive: true });
   const publicBaseUrl = String(process.env.PUBLIC_API_URL || requestBaseUrl).replace(/\/$/, '');
@@ -14,4 +15,13 @@ export async function saveSubmissionFrames(frames, requestBaseUrl = '') {
     await writeFile(path.join(uploadDirectory, filename), Buffer.from(match[2], 'base64'));
     return `${publicBaseUrl}/uploads/submissions/${filename}`;
   }));
+}
+
+export async function saveSubmissionVideo(file, requestBaseUrl = '') {
+  await mkdir(videoDirectory, { recursive: true });
+  const extension = file.mimetype === 'video/webm' ? 'webm' : 'mp4';
+  const filename = `${randomUUID()}.${extension}`;
+  await writeFile(path.join(videoDirectory, filename), file.buffer);
+  const publicBaseUrl = String(process.env.PUBLIC_API_URL || requestBaseUrl).replace(/\/$/, '');
+  return `${publicBaseUrl}/uploads/submissions/videos/${filename}`;
 }

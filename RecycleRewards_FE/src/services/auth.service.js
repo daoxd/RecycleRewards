@@ -27,6 +27,7 @@ export const authService = {
   mySubmissions: (studentId) => request(`/submissions?studentId=${encodeURIComponent(studentId)}`, { role: 'student' }),
   createSubmission: (payload) => request('/submissions', { method: 'POST', body: payload, role: 'student' }),
   uploadFrames: (frames) => request('/submissions/upload', { method: 'POST', body: { frames }, role: 'student' }),
+  uploadVideo: (blob, duration, recordedAt) => { const form = new FormData(); form.append('video', blob, 'submission.webm'); form.append('duration', String(duration)); form.append('recordedAt', recordedAt); return request('/submissions/upload-video', { method: 'POST', body: form, role: 'student' }); },
   checkAi: (confidence, frames) => request('/submissions/check-ai', { method: 'POST', body: { confidence, frames }, role: 'student' }),
   adminSubmissions: (status) => request(`/admin/submissions${status ? `?status=${status}` : ''}`, { role: 'admin' }),
   reviewSubmission: (id, payload) => request(`/admin/submissions/${id}`, { method: 'PATCH', body: payload, role: 'admin' }),
