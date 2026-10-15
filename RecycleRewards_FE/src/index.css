@@ -131,7 +131,6 @@ label { display: block; font-size: 12px; font-weight: 700; margin: 17px 0 7px; c
 .prediction-badge strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .prediction-badge span { flex: 0 0 auto; color: #a6edc9; font-weight: 800; }
 .drop-zone .btn + .btn { margin-left: 6px; }
-.drop-zone:has(.camera-preview:not(.camera-hidden))::before { content: ''; position: absolute; z-index: 1; width: min(62%, 330px); aspect-ratio: 1; top: 50%; left: 50%; border: 2px solid #a6edc9; border-radius: 8px; box-shadow: 0 0 0 999px #061d1533, 0 0 20px #a6edc9aa; transform: translate(-50%, -50%); pointer-events: none; }
 .drop-zone .prediction-badge { top: auto; bottom: 14px; left: 50%; right: auto; width: min(80%, 330px); transform: translateX(-50%); }
 .recorded-video { display: grid; gap: 9px; }
 .recorded-video video { width: 100%; max-height: min(70vh, 560px); aspect-ratio: 16 / 9; object-fit: contain; border-radius: 10px; background: #102d25; }
