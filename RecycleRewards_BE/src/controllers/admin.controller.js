@@ -22,8 +22,10 @@ export async function listSubmissions(req, res) {
 
 export async function reviewSubmission(req, res) {
   const { status, feedback } = req.body;
+  const points = Number(req.body?.points);
   if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ message: 'Trạng thái duyệt không hợp lệ.' });
   if (status === 'rejected' && !String(feedback || '').trim()) return res.status(400).json({ message: 'Cần nhập lý do từ chối.' });
+  if (status === 'approved' && (!Number.isInteger(points) || points < 0)) return res.status(400).json({ message: 'Điểm thưởng phải là số nguyên không âm.' });
 
   const session = await mongoose.startSession();
   let reviewed;
@@ -31,14 +33,14 @@ export async function reviewSubmission(req, res) {
     await session.withTransaction(async () => {
       const item = await Submission.findOneAndUpdate(
         { _id: req.params.id, status: 'pending' },
-        { $set: { status, feedback: status === 'rejected' ? String(feedback).trim() : '', points: status === 'approved' ? 5 : 0, reviewedAt: new Date(), reviewedBy: req.user._id } },
+        { $set: { status, feedback: status === 'rejected' ? String(feedback).trim() : '', points: status === 'approved' ? points : 0, reviewedAt: new Date(), reviewedBy: req.user._id } },
         { new: true, session },
       );
       if (!item) throw Object.assign(new Error('Không tìm thấy bài nộp hoặc bài đã được xử lý.'), { status: 404 });
 
       if (status === 'approved') {
-        await Transaction.create([{ userId: item.userId, submissionId: item._id, type: 'submission_reward', points: 5, description: 'Điểm thưởng vật phẩm tái chế', createdBy: req.user._id }], { session });
-        await User.findByIdAndUpdate(item.userId, { $inc: { pointsBalance: 5 } }, { session });
+        await Transaction.create([{ userId: item.userId, submissionId: item._id, type: 'submission_reward', points, description: 'Điểm thưởng vật phẩm tái chế', createdBy: req.user._id }], { session });
+        await User.findByIdAndUpdate(item.userId, { $inc: { pointsBalance: points } }, { session });
       }
       reviewed = item;
     });
@@ -46,4 +48,33 @@ export async function reviewSubmission(req, res) {
     await session.endSession();
   }
   res.json(reviewed.toJSON());
+}
+
+export async function revokeSubmission(req, res) {
+  const session = await mongoose.startSession();
+  let revoked;
+  try {
+    await session.withTransaction(async () => {
+      const item = await Submission.findOne({ _id: req.params.id, status: 'approved' }).session(session);
+      if (!item) throw Object.assign(new Error('Chỉ có thể thu hồi bài đã được duyệt.'), { status: 404 });
+      if (!item.userId) throw Object.assign(new Error('Bài nộp không liên kết với tài khoản người dùng.'), { status: 409 });
+
+      const reward = await Transaction.findOne({ submissionId: item._id, type: 'submission_reward' }).session(session);
+      const points = Number(reward?.points ?? item.points ?? 0);
+      if (!Number.isInteger(points) || points < 0) throw Object.assign(new Error('Số điểm của bài nộp không hợp lệ.'), { status: 409 });
+
+      await Transaction.create([{ userId: item.userId, submissionId: item._id, type: 'reversal', points: -points, description: 'Thu hồi điểm thưởng vật phẩm tái chế', createdBy: req.user._id }], { session });
+      await User.findByIdAndUpdate(item.userId, { $inc: { pointsBalance: -points } }, { session });
+      item.status = 'rejected';
+      item.points = 0;
+      item.feedback = 'Đã thu hồi lượt duyệt và điểm thưởng.';
+      item.reviewedAt = new Date();
+      item.reviewedBy = req.user._id;
+      await item.save({ session });
+      revoked = item;
+    });
+  } finally {
+    await session.endSession();
+  }
+  res.json(revoked.toJSON());
 }

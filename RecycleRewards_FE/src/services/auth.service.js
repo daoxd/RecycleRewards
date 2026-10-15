@@ -28,6 +28,7 @@ export const authService = {
   createSubmission: (payload) => request('/submissions', { method: 'POST', body: payload, role: 'student' }),
   adminSubmissions: (status) => request(`/admin/submissions${status ? `?status=${status}` : ''}`, { role: 'admin' }),
   reviewSubmission: (id, payload) => request(`/admin/submissions/${id}`, { method: 'PATCH', body: payload, role: 'admin' }),
+  revokeSubmission: (id) => request(`/admin/submissions/${id}/revoke`, { method: 'POST', role: 'admin' }),
 };
 
 function authErrorMessage(error) {
