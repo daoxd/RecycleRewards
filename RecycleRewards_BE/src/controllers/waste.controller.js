@@ -1,6 +1,7 @@
 import { Submission } from '../models/submission.model.js';
+import { saveSubmissionFrames } from '../services/localStorage.service.js';
 
-const AI_CONFIDENCE_THRESHOLD = 80;
+const AI_CONFIDENCE_THRESHOLD = 0.5;
 
 export async function listMine(req, res) {
   const studentId = req.user.role === 'student' ? req.user.studentId : req.query.studentId;
@@ -24,7 +25,7 @@ export async function studentDashboard(req, res) {
 }
 
 export async function submitWaste(req, res) {
-  const { wasteType, confidence, weightKg, imageDataUrl } = req.body;
+  const { wasteType, confidence, weightKg, imageDataUrl, imageUrl, frameUrls } = req.body;
   if (!wasteType) return res.status(400).json({ message: 'Thiếu thông tin vật phẩm.' });
   const parsedWeightKg = Number(weightKg || 0);
   if (!Number.isFinite(parsedWeightKg) || parsedWeightKg < 0) {
@@ -37,16 +38,27 @@ export async function submitWaste(req, res) {
     wasteType,
     confidence: Number(confidence) || 88,
     weightKg: parsedWeightKg,
-    imageDataUrl,
+    imageDataUrl: imageDataUrl || '',
+    imageUrl: imageUrl || '',
+    frameUrls: Array.isArray(frameUrls) ? frameUrls.slice(0, 5) : [],
     points: 0,
   });
   res.status(201).json(submission.toJSON());
 }
 
+export async function uploadFrames(req, res) {
+  const frames = Array.isArray(req.body?.frames) ? req.body.frames : [];
+  if (frames.length < 3 || frames.length > 5) return res.status(400).json({ message: 'Cần tải lên từ 3 đến 5 frame.' });
+  const requestBaseUrl = `${req.protocol}://${req.get('host')}`;
+  const frameUrls = await saveSubmissionFrames(frames, requestBaseUrl);
+  res.status(201).json({ frameUrls });
+}
+
 export function checkAi(req, res) {
-  const confidence = Number(req.body?.confidence);
-  if (!Number.isFinite(confidence) || confidence < 0 || confidence > 100) {
-    return res.status(400).json({ message: 'Confidence phải là số trong khoảng từ 0 đến 100.' });
+  const rawConfidence = Number(req.body?.confidence);
+  const confidence = rawConfidence > 1 ? rawConfidence / 100 : rawConfidence;
+  if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
+    return res.status(400).json({ message: 'Confidence phải là số trong khoảng từ 0 đến 1.' });
   }
 
   if (confidence < AI_CONFIDENCE_THRESHOLD) {

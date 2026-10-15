@@ -3,6 +3,7 @@ import express from 'express';
 import routes from './routes/index.js';
 import { notFound, errorHandler } from './middlewares/error.middleware.js';
 import { databaseState } from './config/db.js';
+import path from 'node:path';
 
 const app = express();
 const allowedOrigins = String(process.env.FRONTEND_ORIGINS || 'https://recycle-rewards-2026.web.app,http://localhost:5173').split(',').map((origin) => origin.trim()).filter(Boolean);
@@ -19,6 +20,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '8mb' }));
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 app.get('/api/health', (_req, res) => res.json({ ok: true, database: databaseState() }));
 app.use('/api', routes);
 app.use('/api/v1', routes);

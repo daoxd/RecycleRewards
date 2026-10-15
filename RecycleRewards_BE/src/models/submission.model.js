@@ -11,6 +11,7 @@ const submissionSchema = new mongoose.Schema({
 	weightKg: { type: Number, default: 0, min: 0 },
 	imageDataUrl: { type: String, default: '' },
 	imageUrl: { type: String, default: '' },
+	frameUrls: { type: [String], default: [] },
 	feedback: { type: String, default: '' },
 	submittedAt: { type: Date, default: Date.now, index: true },
 	reviewedAt: Date,
