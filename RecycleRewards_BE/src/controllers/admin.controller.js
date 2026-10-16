@@ -72,8 +72,24 @@ export async function revokeSubmission(req, res) {
     const points = Number(reward?.points ?? item.points ?? 0);
     if (!Number.isInteger(points) || points < 0) throw Object.assign(new Error('Số điểm của bài nộp không hợp lệ.'), { status: 409 });
 
-    await Transaction.create([{ userId: item.userId, submissionId: item._id, type: 'reversal', points: -points, description: 'Thu hồi điểm thưởng vật phẩm tái chế', createdBy: req.user._id }], session ? { session } : undefined);
-    await User.findByIdAndUpdate(item.userId, { $inc: { pointsBalance: -points } }, session ? { session } : undefined);
+    const reversal = {
+      userId: item.userId,
+      submissionId: item._id,
+      type: 'reversal',
+      points: -points,
+      description: 'Thu hồi điểm thưởng vật phẩm tái chế',
+      createdBy: req.user._id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const reversalResult = await Transaction.collection.findOneAndUpdate(
+      { submissionId: item._id, type: 'reversal' },
+      { $setOnInsert: reversal },
+      { upsert: true, returnDocument: 'after', includeResultMetadata: true, ...(session ? { session } : {}) },
+    );
+    if (reversalResult.lastErrorObject?.upserted) {
+      await User.findByIdAndUpdate(item.userId, { $inc: { pointsBalance: -points } }, session ? { session } : undefined);
+    }
     item.status = 'rejected';
     item.points = 0;
     item.feedback = 'Đã thu hồi lượt duyệt và điểm thưởng.';
