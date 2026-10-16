@@ -245,10 +245,23 @@ label { display: block; font-size: 12px; font-weight: 700; margin: 17px 0 7px; c
 }
 
 .submission-video-link {
-  grid-column: 1 / -1;
+  display: inline-block;
   padding: 8px 0;
   color: #087f5b;
   text-decoration: none;
+}
+
+.submission-video {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.submission-video video {
+  width: 100%;
+  max-height: 280px;
+  display: block;
+  border-radius: 8px;
+  background: #102d25;
 }
 
 .submission-no-media {

@@ -32,6 +32,7 @@ function SubmissionGallery({ item }) {
   const images = [
     ...(Array.isArray(item.frameUrls) ? item.frameUrls : []),
     ...(item.imageUrl ? [item.imageUrl] : []),
+    ...(item.imageDataUrl ? [item.imageDataUrl] : []),
   ].filter((url, index, list) => url && list.indexOf(url) === index);
 
   if (!images.length && !item.videoUrl) {
@@ -57,14 +58,19 @@ function SubmissionGallery({ item }) {
       ))}
 
       {item.videoUrl && (
-        <a
-          className="submission-video-link"
-          href={item.videoUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          ▶ Xem video
-        </a>
+        <div className="submission-video">
+          <video controls preload="metadata" src={item.videoUrl}>
+            Trình duyệt không hỗ trợ phát video.
+          </video>
+          <a
+            className="submission-video-link"
+            href={item.videoUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Mở video ở tab mới
+          </a>
+        </div>
       )}
     </div>
   );
@@ -270,7 +276,7 @@ export default function AdminSubmissions() {
                   </div>
                 </div>
 
-                <h3>Ảnh minh chứng</h3>
+                <h3>Tư liệu người dùng đã gửi</h3>
                 <SubmissionGallery item={item} />
 
                 {item.feedback && (
