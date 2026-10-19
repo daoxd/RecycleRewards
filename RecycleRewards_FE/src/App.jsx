@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { authService } from './services/auth.service.js';
 import AdminDashboard from './pages/AdminDashboard.jsx';
+import AdminRewards from './pages/AdminRewards.jsx';
 import Profile from './pages/Profile.jsx';
 import { useToast } from './components/ToastProvider.jsx';
 
@@ -30,7 +31,7 @@ function Login({ login, notify }) {
   </div></section><aside className="login-art"><div><em>MỖI HÀNH ĐỘNG NHỎ, MỘT TƯƠNG LAI XANH</em><h2>Biến điều tốt<br />thành <i>thói quen.</i></h2><p>Mỗi món đồ được tái chế đúng cách đều góp thêm một điểm xanh cho lớp học và hành tinh của chúng ta.</p><b className="giant-leaf">♧</b></div><footer>Một chương trình nhỏ từ THCS Nguyễn Du <span>01 / 04</span></footer></aside></main>;
 }
 function Nav({ session, route, go, logout }) {
-  const links = session.role === 'admin' ? [['/admin/dashboard', '▦', 'Thống kê'], ['/admin', '☑', 'Duyệt bài'], ['/profile', '♙', 'Hồ sơ']] : [['/student/dashboard', '⌂', 'Tổng quan'], ['/student/scanner', '⌁', 'Quét rác tái chế'], ['/student/history', '◷', 'Lịch sử của tôi'], ['/profile', '♙', 'Hồ sơ']];
+  const links = session.role === 'admin' ? [['/admin/dashboard', '▦', 'Thống kê'], ['/admin/rewards', '◇', 'Quản lý quà'], ['/admin', '☑', 'Duyệt bài'], ['/profile', '♙', 'Hồ sơ']] : [['/student/dashboard', '⌂', 'Tổng quan'], ['/student/scanner', '⌁', 'Quét rác tái chế'], ['/student/history', '◷', 'Lịch sử của tôi'], ['/profile', '♙', 'Hồ sơ']];
   return <><aside className="sidebar"><Logo /><p className="menu-title">MENU CHÍNH</p><nav>{links.map(([path, icon, label]) => <button key={path} className={route === path ? 'nav-active' : ''} onClick={() => go(path)}><b>{icon}</b>{label}</button>)}</nav><div className="green-tip"><b>♧ Góc xanh mỗi ngày</b><small>Tái chế đúng, vui hơn!</small></div><div className="profile"><b>{initials(session.name)}</b><span><strong>{session.name}</strong><small>{session.role === 'admin' ? 'Quản trị viên' : 'Học sinh'}</small></span><button aria-label="Đăng xuất" onClick={logout}>⇥</button></div></aside><nav className="mobile-nav" aria-label="Điều hướng chính">{links.map(([path, icon, label]) => <button key={path} aria-label={label} className={route === path ? 'nav-active' : ''} onClick={() => go(path)}><b>{icon}</b><small>{label}</small></button>)}</nav></>;
 }
 function Header({ eyebrow, title, subtitle, children }) { return <header className="page-header"><div><em>{eyebrow}</em><h1>{title}</h1><p>{subtitle}</p></div>{children}</header>; }
@@ -87,7 +88,7 @@ export default function App() {
   const isAdminQueueRoute = route === '/admin' || route === '/admin/submissions';
   let page;
   if (isProfileRoute) page = <Profile session={session} setSession={setSession} />;
-  else if (session.role === 'admin') page = isAdminQueueRoute ? <Admin notify={notify} /> : <AdminDashboard />;
+  else if (session.role === 'admin') page = route === '/admin/rewards' ? <AdminRewards /> : isAdminQueueRoute ? <Admin notify={notify} /> : <AdminDashboard />;
   else page = route === '/student/scanner' ? <Scanner session={session} go={go} notify={notify} /> : route === '/student/history' ? <History session={session} /> : <Dashboard session={session} go={go} />;
   return <div className="shell"><Nav session={session} route={route} go={go} logout={logout} /><main className="content">{page}</main></div>;
 }
