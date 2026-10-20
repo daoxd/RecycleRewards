@@ -1,0 +1,98 @@
+name: CI/CD Pipeline (Backend & Frontend)
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+
+jobs:
+  # Job 1: Tự động deploy Backend lên AWS EC2
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH Key
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Connect and Update Backend on EC2
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+          BRANCH: ${{ github.ref_name }}
+          ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RECYCLE_REWARDS_2026 }}
+        run: |
+          SERVICE_ACCOUNT_B64=$(printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | base64 -w 0)
+          ssh -o StrictHostKeyChecking=no $USER@$HOST "BRANCH='$BRANCH' ADMIN_EMAILS='$ADMIN_EMAILS' SERVICE_ACCOUNT_B64='$SERVICE_ACCOUNT_B64' bash -s" << 'EOF'
+            BACKEND_DIR=$(find ~ -type d -path "*/RecycleRewards_BE" 2>/dev/null | head -n 1)
+            
+            if [ -z "$BACKEND_DIR" ]; then
+              echo "Không tìm thấy thư mục RecycleRewards_BE trên EC2!"
+              exit 1
+            fi
+
+            REPO_DIR=$(git -C "$BACKEND_DIR" rev-parse --show-toplevel)
+            echo "Đang deploy repo: $REPO_DIR"
+            cd "$REPO_DIR"
+
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            cd "$BACKEND_DIR"
+            npm install
+
+            if [ -n "$SERVICE_ACCOUNT_B64" ]; then
+              printf '%s' "$SERVICE_ACCOUNT_B64" | base64 -d > "$BACKEND_DIR/firebase-service-account.json"
+            fi
+            export GOOGLE_APPLICATION_CREDENTIALS="$BACKEND_DIR/firebase-service-account.json"
+            
+            # Kiểm tra và tự động cài đặt PM2 nếu trên server chưa có
+            export PATH=$PATH:/home/ubuntu/.npm/bin:/usr/bin:/usr/local/bin
+            if ! command -v pm2 &> /dev/null; then
+              echo "PM2 chưa được cài đặt, đang tiến hành cài đặt..."
+              sudo npm install -g pm2
+            fi
+            
+            # Restart hoặc start mới app nếu chưa tồn tại process recycle-backend
+            export ADMIN_EMAILS="${ADMIN_EMAILS:-caothaiduongmcpe123@gmail.com}"
+            if pm2 describe recycle-backend > /dev/null 2>&1; then
+              pm2 restart recycle-backend --update-env
+            else
+              pm2 start server.js --name recycle-backend
+            fi
+            
+            pm2 save
+          EOF
+
+  # Job 2: Tự động build và deploy Frontend lên Firebase Hosting
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-backend 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Build Frontend
+        working-directory: ./RecycleRewards_FE
+        env:
+          VITE_API_URL: https://recycle-rewards.duckdns.org/api
+        run: |
+          npm install
+          npm run build
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_RECYCLE_REWARDS_2026 }}'
+          channelId: live
+          projectId: recycle-rewards-2026
+          entryPoint: ./RecycleRewards_FE
